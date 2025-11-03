@@ -1,0 +1,39 @@
+{
+  "name": "q-deck-launcher",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build:debug": "tauri build --debug",
+    "test": "echo \"No tests specified yet\"",
+    "test:rust": "cd src-tauri && cargo test",
+    "check": "tsc --noEmit && cd src-tauri && cargo check",
+    "clean": "rimraf dist && cd src-tauri && cargo clean",
+    "setup": "npm install && npm run check"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "framer-motion": "^12.23.24",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "styled-components": "^6.1.19",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@types/styled-components": "^5.1.35",
+    "@vitejs/plugin-react": "^4.6.0",
+    "rimraf": "^6.1.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4"
+  }
+}

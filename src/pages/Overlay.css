@@ -1,0 +1,214 @@
+/* Overlay Container - Full screen backdrop */
+.overlay-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: transparent;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 20px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Overlay Content - Main window */
+.overlay-content {
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  width: fit-content;
+  height: fit-content;
+  overflow: hidden;
+  padding: 0.75rem;
+  animation: overlaySlideIn 150ms ease-out;
+}
+
+.overlay-content.loading {
+  min-width: 300px;
+  width: auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+/* Overlay Header */
+.overlay-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.overlay-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.overlay-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.close-button {
+  background: rgba(255, 100, 100, 0.1);
+  border: 1px solid rgba(255, 100, 100, 0.2);
+  color: rgba(255, 100, 100, 0.8);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.close-button:hover {
+  background: rgba(255, 100, 100, 0.2);
+  border-color: rgba(255, 100, 100, 0.4);
+  color: rgba(255, 100, 100, 1);
+  transform: scale(1.05);
+}
+
+
+
+/* Overlay Footer */
+.overlay-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.overlay-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Loading State */
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top: 3px solid rgba(100, 108, 255, 0.8);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+/* Animations */
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overlaySlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-200px) scale(0.9);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes overlaySlideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-100px) scale(0.95);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Light Theme Support */
+@media (prefers-color-scheme: light) {
+  .overlay-container {
+    background: rgba(255, 255, 255, 0.3);
+  }
+  
+  .overlay-content {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(0, 0, 0, 0.1);
+    box-shadow: 
+      0 20px 40px rgba(0, 0, 0, 0.15),
+      0 0 0 1px rgba(0, 0, 0, 0.05);
+  }
+  
+  .overlay-header {
+    border-bottom-color: rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.02);
+  }
+  
+  .overlay-header h2 {
+    color: rgba(0, 0, 0, 0.9);
+  }
+  
+  .overlay-footer {
+    border-top-color: rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.02);
+  }
+  
+  .overlay-info {
+    color: rgba(0, 0, 0, 0.6);
+  }
+  
+  .loading-spinner {
+    border-color: rgba(0, 0, 0, 0.1);
+    border-top-color: rgba(100, 108, 255, 0.8);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .overlay-container {
+    padding-top: 10px;
+  }
+}
+
+/* High DPI Support */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .overlay-content {
+    border-width: 0.5px;
+  }
+  
+  .overlay-header,
+  .overlay-footer {
+    border-width: 0.5px;
+  }
+}

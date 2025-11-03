@@ -1,0 +1,236 @@
+/* Action Button */
+.action-button {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border: 1px solid rgba(100, 108, 255, 0.3);
+  background: linear-gradient(135deg, 
+    rgba(100, 108, 255, 0.15) 0%, 
+    rgba(100, 108, 255, 0.08) 100%);
+  color: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  font-family: inherit;
+  text-align: center;
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.action-button:hover {
+  border-color: rgba(100, 108, 255, 0.5);
+  background: linear-gradient(135deg, 
+    rgba(100, 108, 255, 0.25) 0%, 
+    rgba(100, 108, 255, 0.15) 100%);
+  box-shadow: 
+    0 4px 16px rgba(100, 108, 255, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.action-button:active {
+  transform: translateY(1px);
+  box-shadow: 
+    0 1px 4px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Button Icon */
+.button-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  margin-bottom: 0.125rem;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+/* Button Label */
+.button-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  word-break: break-word;
+  hyphens: auto;
+  max-width: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Button Type */
+.button-type {
+  font-size: 0.6rem;
+  font-weight: 400;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: auto;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Action Type Specific Styles */
+.action-button[title*="LaunchApp"] {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: linear-gradient(135deg, 
+    rgba(34, 197, 94, 0.15) 0%, 
+    rgba(34, 197, 94, 0.08) 100%);
+}
+
+.action-button[title*="LaunchApp"]:hover {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: linear-gradient(135deg, 
+    rgba(34, 197, 94, 0.25) 0%, 
+    rgba(34, 197, 94, 0.15) 100%);
+  box-shadow: 
+    0 4px 16px rgba(34, 197, 94, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.action-button[title*="Open"] {
+  border-color: rgba(59, 130, 246, 0.3);
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.15) 0%, 
+    rgba(59, 130, 246, 0.08) 100%);
+}
+
+.action-button[title*="Open"]:hover {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.25) 0%, 
+    rgba(59, 130, 246, 0.15) 100%);
+  box-shadow: 
+    0 4px 16px rgba(59, 130, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.action-button[title*="Terminal"] {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: linear-gradient(135deg, 
+    rgba(16, 185, 129, 0.15) 0%, 
+    rgba(16, 185, 129, 0.08) 100%);
+}
+
+.action-button[title*="Terminal"]:hover {
+  border-color: rgba(16, 185, 129, 0.5);
+  background: linear-gradient(135deg, 
+    rgba(16, 185, 129, 0.25) 0%, 
+    rgba(16, 185, 129, 0.15) 100%);
+  box-shadow: 
+    0 4px 16px rgba(16, 185, 129, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.action-button[title*="PowerShell"] {
+  border-color: rgba(168, 85, 247, 0.3);
+  background: linear-gradient(135deg, 
+    rgba(168, 85, 247, 0.15) 0%, 
+    rgba(168, 85, 247, 0.08) 100%);
+}
+
+.action-button[title*="PowerShell"]:hover {
+  border-color: rgba(168, 85, 247, 0.5);
+  background: linear-gradient(135deg, 
+    rgba(168, 85, 247, 0.25) 0%, 
+    rgba(168, 85, 247, 0.15) 100%);
+  box-shadow: 
+    0 4px 16px rgba(168, 85, 247, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.action-button[title*="Folder"] {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: linear-gradient(135deg, 
+    rgba(245, 158, 11, 0.15) 0%, 
+    rgba(245, 158, 11, 0.08) 100%);
+}
+
+.action-button[title*="Folder"]:hover {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: linear-gradient(135deg, 
+    rgba(245, 158, 11, 0.25) 0%, 
+    rgba(245, 158, 11, 0.15) 100%);
+  box-shadow: 
+    0 4px 16px rgba(245, 158, 11, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.action-button[title*="MultiAction"] {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: linear-gradient(135deg, 
+    rgba(239, 68, 68, 0.15) 0%, 
+    rgba(239, 68, 68, 0.08) 100%);
+}
+
+.action-button[title*="MultiAction"]:hover {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: linear-gradient(135deg, 
+    rgba(239, 68, 68, 0.25) 0%, 
+    rgba(239, 68, 68, 0.15) 100%);
+  box-shadow: 
+    0 4px 16px rgba(239, 68, 68, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .button-icon {
+    font-size: 1.25rem;
+  }
+  
+  .button-label {
+    font-size: 0.7rem;
+  }
+  
+  .button-type {
+    font-size: 0.55rem;
+  }
+}
+
+/* High DPI Support */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .action-button {
+    border-width: 0.5px;
+  }
+}
+
+/* Light Theme Support */
+@media (prefers-color-scheme: light) {
+  .action-button {
+    color: rgba(0, 0, 0, 0.9);
+    box-shadow: 
+      0 2px 8px rgba(0, 0, 0, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+  
+  .action-button:hover {
+    box-shadow: 
+      0 4px 16px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+  
+  .action-button:active {
+    box-shadow: 
+      0 1px 4px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+  
+  .button-icon {
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+  }
+  
+  .button-label {
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+  }
+  
+  .button-type {
+    color: rgba(0, 0, 0, 0.6);
+  }
+}
