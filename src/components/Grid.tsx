@@ -35,21 +35,36 @@ export const Grid: React.FC<GridProps> = ({ config }) => {
     pixelRatio: window.devicePixelRatio
   });
 
-  // DPI and screen detection
+  // Simplified screen info detection
   const updateScreenInfo = useCallback(() => {
     const newScreenInfo = {
       width: window.screen.width,
       height: window.screen.height,
       availWidth: window.screen.availWidth,
       availHeight: window.screen.availHeight,
-      pixelRatio: window.devicePixelRatio
+      pixelRatio: window.devicePixelRatio,
+      colorDepth: window.screen.colorDepth,
+      orientation: window.screen.orientation?.type || 'landscape-primary',
+      dpiCategory: getDPICategory(window.devicePixelRatio),
+      physicalWidth: Math.round(window.screen.width / window.devicePixelRatio),
+      physicalHeight: Math.round(window.screen.height / window.devicePixelRatio),
     };
     
     setScreenInfo(newScreenInfo);
-    setDpiScale(window.devicePixelRatio);
+    
+    // Simple DPI scaling - let CSS handle most of the responsive behavior
+    setDpiScale(Math.min(window.devicePixelRatio, 2.0));
     
     console.log('Screen info updated:', newScreenInfo);
   }, []);
+
+  // Helper function to categorize DPI
+  const getDPICategory = (pixelRatio: number): string => {
+    if (pixelRatio <= 1.25) return 'standard';
+    if (pixelRatio <= 1.75) return 'high';
+    if (pixelRatio <= 2.5) return 'very-high';
+    return 'ultra-high';
+  };
 
   useEffect(() => {
     updateScreenInfo();
@@ -219,28 +234,52 @@ export const Grid: React.FC<GridProps> = ({ config }) => {
 
 
 
-  // Calculate optimal cell size based on DPI and screen size
+  // Simplified and reliable cell size calculation
   const calculateOptimalCellSize = useCallback(() => {
     if (!config) return 96;
     
-    const baseCellSize = config.ui.window.cell_size_px;
-    const dpiAdjustedSize = baseCellSize * Math.min(dpiScale, 2); // Cap at 2x for very high DPI
+    const profile = config.profiles[currentProfile];
+    const currentPageData = profile?.pages[currentPage];
     
-    // Ensure minimum size for usability
+    if (!currentPageData) return config.ui.window.cell_size_px;
+    
+    const { rows, cols } = currentPageData;
+    const baseGapSize = config.ui.window.gap_px;
+    
+    // Use viewport dimensions instead of screen dimensions for more reliable calculation
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // Reserve space for padding and potential scrollbars
+    const availableWidth = viewportWidth * 0.9; // 90% of viewport width
+    const availableHeight = viewportHeight * 0.85; // 85% of viewport height
+    
+    // Calculate maximum cell size that fits
+    const maxCellWidth = (availableWidth - (cols - 1) * baseGapSize) / cols;
+    const maxCellHeight = (availableHeight - (rows - 1) * baseGapSize) / rows;
+    
+    // Use the smaller dimension to ensure the grid fits
+    const calculatedSize = Math.min(maxCellWidth, maxCellHeight);
+    
+    // Apply reasonable bounds
     const minSize = 64;
     const maxSize = 128;
     
-    return Math.max(minSize, Math.min(maxSize, dpiAdjustedSize));
-  }, [config, dpiScale]);
+    return Math.max(minSize, Math.min(maxSize, Math.floor(calculatedSize)));
+  }, [config, currentProfile, currentPage]);
 
   const calculateOptimalGapSize = useCallback(() => {
     if (!config) return 8;
     
-    const baseGapSize = config.ui.window.gap_px;
-    const dpiAdjustedGap = baseGapSize * Math.min(dpiScale, 1.5); // Smaller scaling for gaps
+    // Keep gap size simple and proportional to cell size
+    const cellSize = calculateOptimalCellSize();
+    const baseGap = config.ui.window.gap_px;
     
-    return Math.max(4, Math.min(16, dpiAdjustedGap));
-  }, [config, dpiScale]);
+    // Scale gap proportionally to cell size
+    const scaledGap = (cellSize / 96) * baseGap;
+    
+    return Math.max(4, Math.min(16, Math.round(scaledGap)));
+  }, [config, calculateOptimalCellSize]);
 
   const optimalCellSize = calculateOptimalCellSize();
   const optimalGapSize = calculateOptimalGapSize();
@@ -302,14 +341,13 @@ export const Grid: React.FC<GridProps> = ({ config }) => {
     alert('ボタン削除機能は今後実装予定です');
   }, [contextMenu.button]);
 
+  // Simplified grid style
   const gridStyle = {
     '--grid-rows': page.rows,
     '--grid-cols': page.cols,
     '--cell-size': `${optimalCellSize}px`,
     '--gap-size': `${optimalGapSize}px`,
     '--dpi-scale': dpiScale,
-    '--screen-width': `${screenInfo.width}px`,
-    '--screen-height': `${screenInfo.height}px`,
   } as React.CSSProperties;
 
 

@@ -27,11 +27,24 @@ const mockTauriAPI = {
   positionOverlay: vi.fn(),
   executeAction: vi.fn(),
   getRecentLogs: vi.fn(),
+  getLogStats: vi.fn(),
+  rotateLog: vi.fn(),
+  cleanupLogsBySize: vi.fn(),
   registerHotkey: vi.fn(),
   unregisterHotkey: vi.fn(),
   registerMultipleHotkeys: vi.fn(),
   getRegisteredHotkeys: vi.fn(),
   isHotkeyAvailable: vi.fn(),
+  // New icon processing APIs
+  processIcon: vi.fn(),
+  extractExecutableIcon: vi.fn(),
+  getIconCacheStats: vi.fn(),
+  clearIconCache: vi.fn(),
+  // New multi-monitor APIs
+  getMonitorInfo: vi.fn(),
+  getCurrentMonitor: vi.fn(),
+  getOptimalGridLayout: vi.fn(),
+  calculateGridMetrics: vi.fn(),
 };
 
 vi.mock('../lib/tauri', () => ({

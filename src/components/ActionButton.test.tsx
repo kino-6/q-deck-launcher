@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ActionButton } from './ActionButton';
 import { mockButton } from '../test/mockData';
 
@@ -104,5 +104,100 @@ describe('ActionButton', () => {
 
     const button = screen.getByRole('button');
     expect(button).toBeInTheDocument();
+  });
+
+  it('renders with custom screen info', () => {
+    const mockScreenInfo = {
+      width: 1920,
+      height: 1080,
+      availWidth: 1920,
+      availHeight: 1040,
+      pixelRatio: 1.5,
+      colorDepth: 24,
+      orientation: 'landscape-primary',
+      dpiCategory: 'high' as const,
+      physicalWidth: 1280,
+      physicalHeight: 720,
+    };
+
+    render(
+      <ActionButton
+        button={mockButton}
+        dpiScale={1.5}
+        screenInfo={mockScreenInfo}
+        onSystemAction={mockOnSystemAction}
+        onContextMenu={mockOnContextMenu}
+      />
+    );
+
+    const button = screen.getByRole('button');
+    expect(button).toBeInTheDocument();
+  });
+
+  it('processes icon correctly', async () => {
+    // Mock the processIcon API call
+    global.mockTauriAPI.processIcon = vi.fn().mockResolvedValue({
+      path: '🚀',
+      icon_type: 'Emoji',
+      size: null,
+      data_url: null,
+      extracted_from: null,
+    });
+
+    render(
+      <ActionButton
+        button={mockButton}
+        onSystemAction={mockOnSystemAction}
+        onContextMenu={mockOnContextMenu}
+      />
+    );
+
+    await waitFor(() => {
+      expect(global.mockTauriAPI.processIcon).toHaveBeenCalledWith('🚀', undefined);
+    });
+  });
+
+  it('handles icon processing error gracefully', async () => {
+    // Mock the processIcon API call to fail
+    global.mockTauriAPI.processIcon = vi.fn().mockRejectedValue(new Error('Icon processing failed'));
+
+    render(
+      <ActionButton
+        button={mockButton}
+        onSystemAction={mockOnSystemAction}
+        onContextMenu={mockOnContextMenu}
+      />
+    );
+
+    // Should still render the button with fallback icon
+    expect(screen.getByRole('button')).toBeInTheDocument();
+  });
+
+  it('applies custom button styles', () => {
+    const styledButton = {
+      ...mockButton,
+      style: {
+        background_color: '#FF0000',
+        text_color: '#FFFFFF',
+        font_size: 14,
+        font_family: 'Arial',
+        border_color: '#CC0000',
+        border_width: 2,
+        border_radius: 10,
+      },
+    };
+
+    render(
+      <ActionButton
+        button={styledButton}
+        onSystemAction={mockOnSystemAction}
+        onContextMenu={mockOnContextMenu}
+      />
+    );
+
+    const button = screen.getByRole('button');
+    expect(button).toBeInTheDocument();
+    // Note: Testing exact styles is complex with CSS-in-JS, 
+    // but we can verify the component renders without errors
   });
 });

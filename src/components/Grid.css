@@ -108,8 +108,12 @@
     0 0 0 1px rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  padding: calc(0.75rem * var(--dpi-scale, 1));
+  padding: 1rem;
   pointer-events: auto;
+  
+  /* Ensure the grid fits within viewport */
+  max-width: 90vw;
+  max-height: 85vh;
   
   /* Smooth transitions for dynamic resizing */
   transition: all 0.3s ease;
@@ -117,6 +121,9 @@
   /* Ensure crisp rendering on high DPI displays */
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
+  
+  /* Container query support for modern responsive design */
+  container-type: size;
 }
 
 /* Grid Cell */
@@ -190,36 +197,90 @@
   line-height: 1.4;
 }
 
-/* Responsive Design */
-@media (max-width: 1200px) {
-  .grid {
-    padding: calc(0.5rem * var(--dpi-scale, 1));
-  }
-}
-
+/* Simplified and reliable responsive design */
+/* Use viewport-based sizing for better reliability */
 @media (max-width: 768px) {
   .grid {
-    padding: calc(0.4rem * var(--dpi-scale, 1));
+    padding: 0.5rem;
+    max-width: 95vw;
+    max-height: 75vh;
   }
 }
 
-@media (max-width: 480px) {
+@media (min-width: 769px) and (max-width: 1366px) {
   .grid {
-    padding: calc(0.3rem * var(--dpi-scale, 1));
+    padding: 0.75rem;
+    max-width: 90vw;
+    max-height: 80vh;
   }
 }
 
-/* Large screens optimization */
-@media (min-width: 1920px) {
+@media (min-width: 1367px) {
   .grid {
-    padding: calc(1rem * var(--dpi-scale, 1));
+    padding: 1rem;
+    max-width: 85vw;
+    max-height: 85vh;
   }
 }
 
-/* Ultra-wide screens */
-@media (min-width: 2560px) {
+/* Container queries for modern browsers */
+@container (max-width: 600px) {
   .grid {
-    padding: calc(1.25rem * var(--dpi-scale, 1));
+    gap: calc(var(--gap-size) * 0.8);
+  }
+  
+  .grid-cell {
+    border-radius: 6px;
+  }
+}
+
+@container (min-width: 1200px) {
+  .grid {
+    gap: calc(var(--gap-size) * 1.1);
+    border-radius: 16px;
+  }
+  
+  .grid-cell {
+    border-radius: 10px;
+  }
+}
+
+/* Fallback for browsers without container query support */
+@supports not (container-type: size) {
+  @media (max-width: 600px) {
+    .grid {
+      gap: calc(var(--gap-size) * 0.8);
+    }
+    
+    .grid-cell {
+      border-radius: 6px;
+    }
+  }
+  
+  @media (min-width: 1200px) {
+    .grid {
+      gap: calc(var(--gap-size) * 1.1);
+      border-radius: 16px;
+    }
+    
+    .grid-cell {
+      border-radius: 10px;
+    }
+  }
+}
+
+/* Orientation-based adjustments */
+@media (orientation: portrait) {
+  .grid {
+    max-width: 95vw;
+    max-height: 70vh;
+  }
+}
+
+@media (orientation: landscape) {
+  .grid {
+    max-width: 85vw;
+    max-height: 85vh;
   }
 }
 

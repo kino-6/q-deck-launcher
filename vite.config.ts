@@ -4,6 +4,11 @@ import react from "@vitejs/plugin-react";
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
+// Dynamic port configuration - can be overridden by environment variables
+// @ts-expect-error process is a nodejs global
+const devPort = parseInt(process.env.VITE_PORT || process.env.PORT || "1420");
+const hmrPort = devPort + 1;
+
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
@@ -12,16 +17,16 @@ export default defineConfig(async () => ({
   //
   // 1. prevent Vite from obscuring rust errors
   clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
+  // 2. tauri expects a fixed port, but we can make it dynamic
   server: {
-    port: 1420,
-    strictPort: true,
+    port: devPort,
+    strictPort: false, // Allow fallback to next available port
     host: host || false,
     hmr: host
       ? {
           protocol: "ws",
           host,
-          port: 1421,
+          port: hmrPort,
         }
       : undefined,
     watch: {

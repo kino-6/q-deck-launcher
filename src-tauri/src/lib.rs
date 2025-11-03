@@ -11,6 +11,7 @@ use modules::{
     action::ActionRunner,
     profile::ProfileManager,
     window::{WindowManager, WindowConfig},
+    icon::{IconService, IconInfo, CacheStats},
 };
 
 // Application state
@@ -21,6 +22,7 @@ pub struct AppState {
     action_runner: Mutex<ActionRunner>,
     profile_manager: Mutex<ProfileManager>,
     window_manager: Mutex<WindowManager>,
+    icon_service: Mutex<IconService>,
 }
 
 // Tauri commands
@@ -135,6 +137,48 @@ async fn is_hotkey_available(hotkey_str: String, state: State<'_, AppState>) -> 
     Ok(hotkey_service.is_hotkey_available(&hotkey_str))
 }
 
+#[tauri::command]
+async fn process_icon(icon_spec: String, fallback_executable: Option<String>, state: State<'_, AppState>) -> Result<IconInfo, String> {
+    let mut icon_service = state.icon_service.lock().map_err(|e| e.to_string())?;
+    icon_service.process_icon(&icon_spec, fallback_executable.as_deref()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn extract_executable_icon(exe_path: String, icon_id: String, state: State<'_, AppState>) -> Result<IconInfo, String> {
+    let icon_service = state.icon_service.lock().map_err(|e| e.to_string())?;
+    icon_service.extract_executable_icon(&exe_path, &icon_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_icon_cache_stats(state: State<'_, AppState>) -> Result<CacheStats, String> {
+    let icon_service = state.icon_service.lock().map_err(|e| e.to_string())?;
+    Ok(icon_service.get_cache_stats())
+}
+
+#[tauri::command]
+async fn clear_icon_cache(state: State<'_, AppState>) -> Result<(), String> {
+    let mut icon_service = state.icon_service.lock().map_err(|e| e.to_string())?;
+    icon_service.clear_cache().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_log_stats(state: State<'_, AppState>) -> Result<modules::logger::LogStats, String> {
+    let logger = state.logger_service.lock().map_err(|e| e.to_string())?;
+    logger.get_log_stats().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn rotate_logs(state: State<'_, AppState>) -> Result<(), String> {
+    let logger = state.logger_service.lock().map_err(|e| e.to_string())?;
+    logger.rotate_logs().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn cleanup_logs_by_size(max_size_mb: u64, state: State<'_, AppState>) -> Result<(), String> {
+    let logger = state.logger_service.lock().map_err(|e| e.to_string())?;
+    logger.cleanup_logs_by_size(max_size_mb).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize logging first
@@ -153,6 +197,9 @@ pub fn run() {
     
     let profile_manager = ProfileManager::new()
         .expect("Failed to initialize profile manager");
+    
+    let icon_service = IconService::new()
+        .expect("Failed to initialize icon service");
 
     tracing::info!("Starting Q-Deck application");
 
@@ -272,6 +319,7 @@ pub fn run() {
                 action_runner: Mutex::new(action_runner),
                 profile_manager: Mutex::new(profile_manager),
                 window_manager: Mutex::new(window_manager),
+                icon_service: Mutex::new(icon_service),
             };
 
             app.manage(app_state);
@@ -289,11 +337,18 @@ pub fn run() {
             position_overlay,
             execute_action,
             get_recent_logs,
+            get_log_stats,
+            rotate_logs,
+            cleanup_logs_by_size,
             register_hotkey,
             unregister_hotkey,
             register_multiple_hotkeys,
             get_registered_hotkeys,
-            is_hotkey_available
+            is_hotkey_available,
+            process_icon,
+            extract_executable_icon,
+            get_icon_cache_stats,
+            clear_icon_cache
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

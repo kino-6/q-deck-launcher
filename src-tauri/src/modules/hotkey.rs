@@ -559,7 +559,7 @@ mod tests {
         
         // Test basic hotkey parsing
         let parsed = service.parse_hotkey_string("Ctrl+Alt+F1").unwrap();
-        assert_eq!(parsed.modifiers, MOD_CONTROL | MOD_ALT);
+        assert_eq!(parsed.modifiers, (MOD_CONTROL | MOD_ALT) as u32);
         assert_eq!(parsed.vk_code, 0x70); // F1
         
         // Test single key
@@ -569,7 +569,7 @@ mod tests {
         
         // Test letter key
         let parsed = service.parse_hotkey_string("Ctrl+A").unwrap();
-        assert_eq!(parsed.modifiers, MOD_CONTROL);
+        assert_eq!(parsed.modifiers, MOD_CONTROL as u32);
         assert_eq!(parsed.vk_code, 'A' as u32);
     }
 
