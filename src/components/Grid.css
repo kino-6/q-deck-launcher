@@ -108,8 +108,15 @@
     0 0 0 1px rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  padding: 0.75rem;
+  padding: calc(0.75rem * var(--dpi-scale, 1));
   pointer-events: auto;
+  
+  /* Smooth transitions for dynamic resizing */
+  transition: all 0.3s ease;
+  
+  /* Ensure crisp rendering on high DPI displays */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
 }
 
 /* Grid Cell */
@@ -184,36 +191,348 @@
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .grid {
-    --cell-size: 80px;
-    --gap-size: 6px;
-    padding: 0.75rem;
-  }
-  
-  .profile-nav,
-  .page-nav {
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: flex-start;
-  }
-  
-  .profile-buttons,
-  .page-buttons {
-    width: 100%;
-    justify-content: flex-start;
-    flex-wrap: wrap;
+    padding: calc(0.5rem * var(--dpi-scale, 1));
   }
 }
 
+@media (max-width: 768px) {
+  .grid {
+    padding: calc(0.4rem * var(--dpi-scale, 1));
+  }
+}
+
+@media (max-width: 480px) {
+  .grid {
+    padding: calc(0.3rem * var(--dpi-scale, 1));
+  }
+}
+
+/* Large screens optimization */
+@media (min-width: 1920px) {
+  .grid {
+    padding: calc(1rem * var(--dpi-scale, 1));
+  }
+}
+
+/* Ultra-wide screens */
+@media (min-width: 2560px) {
+  .grid {
+    padding: calc(1.25rem * var(--dpi-scale, 1));
+  }
+}
+
+/* System Button Cells */
+.grid-cell.system-button {
+  background: transparent;
+  border: none;
+}
+
+/* System Buttons */
+.system-button {
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.config-system-button {
+  background: rgba(100, 108, 255, 0.15);
+  border-color: rgba(100, 108, 255, 0.3);
+  color: rgba(100, 108, 255, 0.9);
+}
+
+.config-system-button:hover {
+  background: rgba(100, 108, 255, 0.25);
+  border-color: rgba(100, 108, 255, 0.5);
+  color: rgba(255, 255, 255, 1);
+  transform: rotate(90deg);
+}
+
+.back-system-button {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: rgba(245, 158, 11, 0.9);
+}
+
+.back-system-button:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: rgba(255, 255, 255, 1);
+  transform: translateX(-2px);
+}
+
+/* Configuration Modal */
+.config-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  pointer-events: auto;
+}
+
+.config-modal {
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  width: 90vw;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow: hidden;
+  pointer-events: auto;
+  position: relative;
+}
+
+.config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.config-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.config-header .close-button {
+  background: rgba(255, 100, 100, 0.1);
+  border: 1px solid rgba(255, 100, 100, 0.2);
+  color: rgba(255, 100, 100, 0.8);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.config-header .close-button:hover {
+  background: rgba(255, 100, 100, 0.2);
+  border-color: rgba(255, 100, 100, 0.4);
+  color: rgba(255, 100, 100, 1);
+}
+
+.config-content {
+  padding: 1.5rem;
+  max-height: 50vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.config-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.config-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.config-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.config-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.config-section {
+  margin-bottom: 2rem;
+}
+
+.config-section:last-child {
+  margin-bottom: 0;
+}
+
+.config-section h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Grid Size Options */
+.grid-size-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.size-option {
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+  font-weight: 500;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.size-option:hover {
+  background: rgba(100, 108, 255, 0.1);
+  border-color: rgba(100, 108, 255, 0.3);
+  color: rgba(255, 255, 255, 1);
+}
+
+.size-option.active {
+  background: rgba(100, 108, 255, 0.2);
+  border-color: rgba(100, 108, 255, 0.4);
+  color: rgba(100, 108, 255, 1);
+}
+
+/* Theme Options */
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.theme-option {
+  padding: 0.75rem;
+  border: 2px solid transparent;
+  color: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  user-select: none;
+}
+
+.theme-option:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.theme-option.active {
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: scale(1.05);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+/* Config Footer */
+.config-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cancel-button,
+.save-button {
+  padding: 0.75rem 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+  font-weight: 500;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.cancel-button {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.cancel-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 1);
+}
+
+.save-button {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.4);
+  color: rgba(34, 197, 94, 1);
+}
+
+.save-button:hover {
+  background: rgba(34, 197, 94, 0.3);
+  border-color: rgba(34, 197, 94, 0.6);
+  color: rgba(255, 255, 255, 1);
+}
+
 /* High DPI Support */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+@media (-webkit-min-device-pixel-ratio: 1.5), (min-resolution: 144dpi) {
+  .grid {
+    border-width: 0.75px;
+  }
+  
   .grid-cell.empty {
+    border-width: 0.75px;
+  }
+}
+
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .grid {
     border-width: 0.5px;
   }
   
-  .grid {
+  .grid-cell.empty {
     border-width: 0.5px;
+  }
+}
+
+@media (-webkit-min-device-pixel-ratio: 3), (min-resolution: 288dpi) {
+  .grid {
+    border-width: 0.33px;
+  }
+  
+  .grid-cell.empty {
+    border-width: 0.33px;
+  }
+}
+
+/* Ultra High DPI (4K+ displays) */
+@media (-webkit-min-device-pixel-ratio: 4), (min-resolution: 384dpi) {
+  .grid {
+    border-width: 0.25px;
+  }
+  
+  .grid-cell.empty {
+    border-width: 0.25px;
   }
 }
 
@@ -274,4 +593,54 @@
   .grid-placeholder h3 {
     color: rgba(0, 0, 0, 0.8);
   }
+}/* Conf
+ig Mode Styles */
+.grid.config-mode {
+  border-color: rgba(100, 108, 255, 0.4);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.4),
+    0 0 0 2px rgba(100, 108, 255, 0.2),
+    0 0 20px rgba(100, 108, 255, 0.1);
+}
+
+.grid.config-mode .grid-cell.empty {
+  border-color: rgba(100, 108, 255, 0.3);
+  background: rgba(100, 108, 255, 0.05);
+}
+
+.grid.config-mode .grid-cell.empty:hover .empty-cell {
+  background: rgba(100, 108, 255, 0.1);
+}
+
+/* System Button Animations */
+.grid-cell .action-button[data-system-action="config"] {
+  background: rgba(100, 108, 255, 0.15);
+  border-color: rgba(100, 108, 255, 0.3);
+}
+
+.grid-cell .action-button[data-system-action="config"]:hover {
+  background: rgba(100, 108, 255, 0.25);
+  border-color: rgba(100, 108, 255, 0.5);
+  transform: rotate(90deg);
+}
+
+.grid-cell .action-button[data-system-action="back"] {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.grid-cell .action-button[data-system-action="back"]:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.5);
+  transform: translateX(-2px);
+}
+
+.grid-cell .action-button[data-system-action="hide_overlay"] {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.grid-cell .action-button[data-system-action="hide_overlay"]:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
 }

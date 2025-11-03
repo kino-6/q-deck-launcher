@@ -56,7 +56,7 @@ function Overlay() {
   }
 
   return (
-    <div className="overlay-container">
+    <div className="overlay-container" onContextMenu={(e) => e.preventDefault()}>
       {config && (
         <motion.div
           initial={{ opacity: 0, y: -150, scale: 0.8 }}

@@ -67,12 +67,20 @@ pub struct Page {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionButton {
     pub position: Position,
-    #[serde(rename = "type")]
     pub action_type: ActionType,
     pub label: String,
     pub icon: Option<String>,
     pub config: HashMap<String, serde_json::Value>,
     pub style: Option<ButtonStyle>,
+    pub action: Option<ActionConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActionConfig {
+    pub action_type: String,
+    pub system_action: Option<String>,
+    pub app_config: Option<HashMap<String, serde_json::Value>>,
+    pub command_config: Option<HashMap<String, serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -219,29 +227,89 @@ impl ConfigManager {
                 .context("Failed to create config directory")?;
         }
         
-        std::fs::write(&self.config_path, yaml_content)
+        std::fs::write(&self.config_path, yaml_content.clone())
             .context("Failed to write config file")?;
+        
+        // In development mode, also sync to common locations to prevent confusion
+        if cfg!(debug_assertions) {
+            self.sync_config_files(&yaml_content)?;
+        }
+        
+        Ok(())
+    }
+    
+    fn sync_config_files(&self, yaml_content: &str) -> Result<()> {
+        let current_dir = std::env::current_dir()
+            .context("Failed to get current directory")?;
+        
+        // List of potential config locations to sync
+        let sync_locations = vec![
+            current_dir.join("config.yaml"),
+            current_dir.join("src-tauri").join("target").join("debug").join("config.yaml"),
+        ];
+        
+        for location in sync_locations {
+            if location != self.config_path {
+                if let Some(parent) = location.parent() {
+                    if parent.exists() {
+                        match std::fs::write(&location, yaml_content) {
+                            Ok(_) => tracing::info!("🔄 Synced config to: {}", location.display()),
+                            Err(e) => tracing::warn!("⚠️ Failed to sync config to {}: {}", location.display(), e),
+                        }
+                    }
+                }
+            }
+        }
         
         Ok(())
     }
 
     fn get_config_path() -> Result<PathBuf> {
-        // Always use portable mode (config in app directory)
+        // Development mode: Use project root config.yaml
+        if cfg!(debug_assertions) {
+            // In development, look for config.yaml in the project root
+            let current_dir = std::env::current_dir()
+                .context("Failed to get current directory")?;
+            
+            // Try to find the project root by looking for package.json
+            let mut search_dir = current_dir.clone();
+            loop {
+                let package_json = search_dir.join("package.json");
+                if package_json.exists() {
+                    let dev_config = search_dir.join("config.yaml");
+                    tracing::info!("🔧 Development mode: Using project root config: {}", dev_config.display());
+                    return Ok(dev_config);
+                }
+                
+                if let Some(parent) = search_dir.parent() {
+                    search_dir = parent.to_path_buf();
+                } else {
+                    break;
+                }
+            }
+            
+            // Fallback to current directory in development
+            let fallback_config = current_dir.join("config.yaml");
+            tracing::warn!("🔧 Development fallback: Using current directory config: {}", fallback_config.display());
+            return Ok(fallback_config);
+        }
+        
+        // Production mode: Use portable mode (config in app directory)
         let exe_path = std::env::current_exe()
             .context("Failed to get executable path")?;
         
         if let Some(exe_dir) = exe_path.parent() {
             let portable_config = exe_dir.join("config.yaml");
-            tracing::info!("Using portable config path: {}", portable_config.display());
+            tracing::info!("📦 Production mode: Using portable config: {}", portable_config.display());
             return Ok(portable_config);
         }
         
-        // Fallback to current directory if exe path detection fails
+        // Final fallback
         let current_dir = std::env::current_dir()
             .context("Failed to get current directory")?;
         
         let fallback_config = current_dir.join("config.yaml");
-        tracing::warn!("Falling back to current directory config: {}", fallback_config.display());
+        tracing::error!("⚠️ Final fallback: Using current directory config: {}", fallback_config.display());
         Ok(fallback_config)
     }
 
@@ -250,8 +318,24 @@ impl ConfigManager {
             let content = std::fs::read_to_string(config_path)
                 .context("Failed to read config file")?;
             
+            tracing::info!("📄 Loading config from: {}", config_path.display());
+            tracing::debug!("📄 Config content:\n{}", content);
+            
             let config: QDeckConfig = serde_yaml::from_str(&content)
                 .context("Failed to parse config YAML")?;
+            
+            tracing::info!("✅ Config loaded successfully");
+            tracing::debug!("📋 Config structure: {:#?}", config);
+            
+            // Log button information
+            for (profile_idx, profile) in config.profiles.iter().enumerate() {
+                for (page_idx, page) in profile.pages.iter().enumerate() {
+                    tracing::info!("📋 Profile {} Page {}: {} buttons", profile_idx, page_idx, page.buttons.len());
+                    for (button_idx, button) in page.buttons.iter().enumerate() {
+                        tracing::info!("🔘 Button {}: '{}' at ({}, {})", button_idx, button.label, button.position.row, button.position.col);
+                    }
+                }
+            }
             
             Ok(config)
         } else {

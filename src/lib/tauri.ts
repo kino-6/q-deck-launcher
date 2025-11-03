@@ -60,7 +60,22 @@ export interface ActionButton {
   icon?: string;
   config: Record<string, any>;
   style?: ButtonStyle;
+  action?: ActionConfig;
 }
+
+export interface ActionConfig {
+  action_type: 'system' | 'app' | 'command';
+  system_action?: SystemAction;
+  app_config?: Record<string, any>;
+  command_config?: Record<string, any>;
+}
+
+export type SystemAction = 
+  | 'config'
+  | 'back'
+  | 'exit_config'
+  | 'hide_overlay'
+  | 'toggle_overlay';
 
 export interface Position {
   row: number;

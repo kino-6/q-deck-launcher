@@ -315,9 +315,11 @@ impl WindowManager {
                 let grid_width = (page.cols as f64 * cell_size) + ((page.cols - 1) as f64 * gap_size);
                 let grid_height = (page.rows as f64 * cell_size) + ((page.rows - 1) as f64 * gap_size);
                 
-                // Add padding and border
+                // Add padding, border, and config button space
+                // Config button: 2.5rem (40px) + margin-bottom 0.5rem (8px) = 48px
+                let config_button_space = 48.0; // Space for config button
                 let total_width = grid_width + (padding * 2.0) + 2.0; // 2px for border
-                let total_height = grid_height + (padding * 2.0) + 2.0; // 2px for border
+                let total_height = grid_height + (padding * 2.0) + 2.0 + config_button_space; // Add config button space
                 
                 // Update window config
                 {

@@ -1,0 +1,110 @@
+.context-menu {
+  position: fixed;
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  min-width: 160px;
+  z-index: 99999;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.context-menu-header {
+  padding: 0.75rem 1rem 0.5rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.context-menu-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.context-menu-items {
+  padding: 0.5rem 0;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.context-menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 1);
+}
+
+.context-menu-item.delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: rgba(239, 68, 68, 1);
+}
+
+.context-menu-icon {
+  margin-right: 0.75rem;
+  font-size: 1rem;
+  width: 1.2rem;
+  text-align: center;
+}
+
+.context-menu-text {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0.5rem 0;
+}
+
+/* Dark theme adjustments */
+@media (prefers-color-scheme: dark) {
+  .context-menu {
+    background: rgba(20, 20, 20, 0.95);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+}
+
+/* Light theme adjustments */
+@media (prefers-color-scheme: light) {
+  .context-menu {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(0, 0, 0, 0.15);
+    color: rgba(0, 0, 0, 0.8);
+  }
+  
+  .context-menu-title {
+    color: rgba(0, 0, 0, 0.9);
+  }
+  
+  .context-menu-item {
+    color: rgba(0, 0, 0, 0.8);
+  }
+  
+  .context-menu-item:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: rgba(0, 0, 0, 1);
+  }
+  
+  .context-menu-separator {
+    background: rgba(0, 0, 0, 0.1);
+  }
+}

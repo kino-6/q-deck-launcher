@@ -32,9 +32,24 @@ async fn get_config(state: State<'_, AppState>) -> Result<QDeckConfig, String> {
 
 #[tauri::command]
 async fn save_config(config: QDeckConfig, state: State<'_, AppState>) -> Result<(), String> {
-    let mut config_manager = state.config_manager.lock().map_err(|e| e.to_string())?;
-    config_manager.update_config(config).map_err(|e| e.to_string())?;
-    Ok(())
+    tracing::info!("💾 save_config command called");
+    tracing::debug!("💾 Config to save: {:#?}", config);
+    
+    let mut config_manager = state.config_manager.lock().map_err(|e| {
+        tracing::error!("❌ Failed to lock config_manager: {}", e);
+        e.to_string()
+    })?;
+    
+    match config_manager.update_config(config) {
+        Ok(_) => {
+            tracing::info!("✅ Configuration saved successfully");
+            Ok(())
+        }
+        Err(e) => {
+            tracing::error!("❌ Failed to save configuration: {}", e);
+            Err(e.to_string())
+        }
+    }
 }
 
 #[tauri::command]

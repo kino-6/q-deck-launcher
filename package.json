@@ -11,7 +11,10 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:build:debug": "tauri build --debug",
-    "test": "echo \"No tests specified yet\"",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
     "test:rust": "cd src-tauri && cargo test",
     "check": "tsc --noEmit && cd src-tauri && cargo check",
     "clean": "rimraf dist && cd src-tauri && cargo clean",
@@ -28,12 +31,17 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@types/styled-components": "^5.1.35",
     "@vitejs/plugin-react": "^4.6.0",
+    "jsdom": "^27.1.0",
     "rimraf": "^6.1.0",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "vitest": "^4.0.6"
   }
 }
