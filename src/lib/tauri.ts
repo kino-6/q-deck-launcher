@@ -294,6 +294,42 @@ export interface GridMetrics {
   scale_factor_applied: number;
 }
 
+// Profile and page management types
+export interface ProfileInfo {
+  name: string;
+  index: number;
+  page_count: number;
+  current_page_index: number;
+  hotkey?: string;
+}
+
+export interface PageInfo {
+  name: string;
+  index: number;
+  rows: number;
+  cols: number;
+  button_count: number;
+}
+
+export interface NavigationContext {
+  profile_name: string;
+  profile_index: number;
+  page_name: string;
+  page_index: number;
+  total_profiles: number;
+  total_pages: number;
+  has_previous_page: boolean;
+  has_next_page: boolean;
+}
+
+export interface ActionResult {
+  success: boolean;
+  message: string;
+  execution_time_ms: number;
+  output?: string;
+  error_code?: number;
+}
+
 // Tauri API wrapper
 export const tauriAPI = {
   // Config management
@@ -327,7 +363,7 @@ export const tauriAPI = {
   clearIconCache: (): Promise<void> => invoke('clear_icon_cache'),
   
   // Action execution
-  executeAction: (actionId: string): Promise<void> => invoke('execute_action', { actionId }),
+  executeAction: (actionId: string): Promise<ActionResult> => invoke('execute_action', { actionId }),
   
   // Logging
   getRecentLogs: (limit: number): Promise<ActionLog[]> => invoke('get_recent_logs', { limit }),
@@ -343,6 +379,21 @@ export const tauriAPI = {
     invoke('get_registered_hotkeys'),
   isHotkeyAvailable: (hotkeyStr: string): Promise<boolean> => 
     invoke('is_hotkey_available', { hotkeyStr }),
+
+  // Profile and page management
+  getProfiles: (): Promise<ProfileInfo[]> => invoke('get_profiles'),
+  getCurrentProfile: (): Promise<ProfileInfo> => invoke('get_current_profile'),
+  switchToProfile: (profileIndex: number): Promise<ProfileInfo> => 
+    invoke('switch_to_profile', { profileIndex }),
+  switchToProfileByName: (profileName: string): Promise<ProfileInfo> => 
+    invoke('switch_to_profile_by_name', { profileName }),
+  getCurrentProfilePages: (): Promise<PageInfo[]> => invoke('get_current_profile_pages'),
+  getCurrentPage: (): Promise<PageInfo> => invoke('get_current_page'),
+  switchToPage: (pageIndex: number): Promise<PageInfo> => 
+    invoke('switch_to_page', { pageIndex }),
+  nextPage: (): Promise<PageInfo> => invoke('next_page'),
+  previousPage: (): Promise<PageInfo> => invoke('previous_page'),
+  getNavigationContext: (): Promise<NavigationContext> => invoke('get_navigation_context'),
 };
 
 export default tauriAPI;

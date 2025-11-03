@@ -74,7 +74,7 @@ describe('ActionButton', () => {
   it('handles button without system action', () => {
     const regularButton = {
       ...mockButton,
-      action: null,
+      action: undefined,
     };
 
     render(
@@ -89,7 +89,7 @@ describe('ActionButton', () => {
     fireEvent.click(button);
 
     // Should call executeAction through tauriAPI
-    expect(global.mockTauriAPI.executeAction).toHaveBeenCalled();
+    expect((globalThis as any).mockTauriAPI.executeAction).toHaveBeenCalled();
   });
 
   it('renders with custom DPI scale', () => {
@@ -136,7 +136,7 @@ describe('ActionButton', () => {
 
   it('processes icon correctly', async () => {
     // Mock the processIcon API call
-    global.mockTauriAPI.processIcon = vi.fn().mockResolvedValue({
+    (globalThis as any).mockTauriAPI.processIcon = vi.fn().mockResolvedValue({
       path: '🚀',
       icon_type: 'Emoji',
       size: null,
@@ -153,13 +153,13 @@ describe('ActionButton', () => {
     );
 
     await waitFor(() => {
-      expect(global.mockTauriAPI.processIcon).toHaveBeenCalledWith('🚀', undefined);
+      expect((globalThis as any).mockTauriAPI.processIcon).toHaveBeenCalledWith('🚀', undefined);
     });
   });
 
   it('handles icon processing error gracefully', async () => {
     // Mock the processIcon API call to fail
-    global.mockTauriAPI.processIcon = vi.fn().mockRejectedValue(new Error('Icon processing failed'));
+    (globalThis as any).mockTauriAPI.processIcon = vi.fn().mockRejectedValue(new Error('Icon processing failed'));
 
     render(
       <ActionButton

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Grid from './components/Grid';
 import Overlay from './pages/Overlay';
+import { ProfileProvider } from './contexts/ProfileContext';
 import { tauriAPI, QDeckConfig, ParsedHotkey } from './lib/tauri';
 import "./App.css";
 
@@ -154,7 +155,11 @@ function App() {
 
   // If we're in overlay mode, render the overlay component
   if (isOverlayMode) {
-    return <Overlay />;
+    return (
+      <ProfileProvider>
+        <Overlay />
+      </ProfileProvider>
+    );
   }
 
   if (isLoading) {
@@ -178,15 +183,16 @@ function App() {
   }
 
   return (
-    <main className="container">
-      <h1>Q-Deck Settings</h1>
-      <p className="subtitle">Configure your overlay launcher</p>
-      
-      <div className="controls">
-        <button onClick={handleShowOverlay}>Show Overlay</button>
-        <button onClick={handleHideOverlay}>Hide Overlay</button>
-        <button onClick={handleToggleOverlay}>Toggle Overlay</button>
-      </div>
+    <ProfileProvider>
+      <main className="container">
+        <h1>Q-Deck Settings</h1>
+        <p className="subtitle">Configure your overlay launcher</p>
+        
+        <div className="controls">
+          <button onClick={handleShowOverlay}>Show Overlay</button>
+          <button onClick={handleHideOverlay}>Hide Overlay</button>
+          <button onClick={handleToggleOverlay}>Toggle Overlay</button>
+        </div>
 
       {config && (
         <div className="config-info">
@@ -272,8 +278,9 @@ function App() {
         </div>
       </div>
 
-      <Grid />
-    </main>
+        <Grid />
+      </main>
+    </ProfileProvider>
   );
 }
 

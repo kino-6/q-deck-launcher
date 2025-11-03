@@ -2,16 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ActionButton from './ActionButton';
 import ContextMenu from './ContextMenu';
-import { QDeckConfig, tauriAPI, ActionButton as ActionButtonType } from '../lib/tauri';
+import { QDeckConfig, tauriAPI, ActionButton as ActionButtonType, ProfileInfo, PageInfo } from '../lib/tauri';
 import './Grid.css';
 
 interface GridProps {
   config?: QDeckConfig;
+  currentProfile?: ProfileInfo;
+  currentPage?: PageInfo;
 }
 
-export const Grid: React.FC<GridProps> = ({ config }) => {
-  const [currentProfile] = useState(0);
-  const [currentPage] = useState(0);
+export const Grid: React.FC<GridProps> = ({ config, currentProfile, currentPage }) => {
+  const currentProfileIndex = currentProfile?.index ?? 0;
+  const currentPageIndex = currentPage?.index ?? 0;
   const [dpiScale, setDpiScale] = useState(1);
   const [showConfig, setShowConfig] = useState(false);
   const [tempConfig, setTempConfig] = useState<QDeckConfig | null>(null);
@@ -152,12 +154,12 @@ export const Grid: React.FC<GridProps> = ({ config }) => {
     
     // Deep clone to ensure React detects the change
     const newConfig = JSON.parse(JSON.stringify(tempConfig));
-    if (newConfig.profiles[currentProfile]?.pages[currentPage]) {
-      newConfig.profiles[currentProfile].pages[currentPage].rows = rows;
-      newConfig.profiles[currentProfile].pages[currentPage].cols = cols;
+    if (newConfig.profiles[currentProfileIndex]?.pages[currentPageIndex]) {
+      newConfig.profiles[currentProfileIndex].pages[currentPageIndex].rows = rows;
+      newConfig.profiles[currentProfileIndex].pages[currentPageIndex].cols = cols;
       // Keep existing buttons but filter out those outside new grid bounds
-      const existingButtons = newConfig.profiles[currentProfile].pages[currentPage].buttons || [];
-      newConfig.profiles[currentProfile].pages[currentPage].buttons = existingButtons.filter(
+      const existingButtons = newConfig.profiles[currentProfileIndex].pages[currentPageIndex].buttons || [];
+      newConfig.profiles[currentProfileIndex].pages[currentPageIndex].buttons = existingButtons.filter(
         (button: any) => button.position.row <= rows && button.position.col <= cols
       );
       console.log('Grid size updated to:', rows, 'x', cols);
@@ -218,8 +220,8 @@ export const Grid: React.FC<GridProps> = ({ config }) => {
     );
   }
 
-  const profile = config.profiles[currentProfile];
-  const page = profile.pages[currentPage];
+  const profile = config.profiles[currentProfileIndex];
+  const page = profile.pages[currentPageIndex];
 
   if (!page) {
     return (
@@ -238,8 +240,8 @@ export const Grid: React.FC<GridProps> = ({ config }) => {
   const calculateOptimalCellSize = useCallback(() => {
     if (!config) return 96;
     
-    const profile = config.profiles[currentProfile];
-    const currentPageData = profile?.pages[currentPage];
+    const profile = config.profiles[currentProfileIndex];
+    const currentPageData = profile?.pages[currentPageIndex];
     
     if (!currentPageData) return config.ui.window.cell_size_px;
     
@@ -266,7 +268,7 @@ export const Grid: React.FC<GridProps> = ({ config }) => {
     const maxSize = 128;
     
     return Math.max(minSize, Math.min(maxSize, Math.floor(calculatedSize)));
-  }, [config, currentProfile, currentPage]);
+  }, [config, currentProfileIndex, currentPageIndex]);
 
   const calculateOptimalGapSize = useCallback(() => {
     if (!config) return 8;
@@ -467,8 +469,8 @@ export const Grid: React.FC<GridProps> = ({ config }) => {
                       <button
                         key={label}
                         className={`size-option ${
-                          tempConfig?.profiles?.[currentProfile]?.pages?.[currentPage]?.rows === rows &&
-                          tempConfig?.profiles?.[currentProfile]?.pages?.[currentPage]?.cols === cols
+                          tempConfig?.profiles?.[currentProfileIndex]?.pages?.[currentPageIndex]?.rows === rows &&
+                          tempConfig?.profiles?.[currentProfileIndex]?.pages?.[currentPageIndex]?.cols === cols
                             ? 'active' : ''
                         }`}
                         onClick={(e) => {

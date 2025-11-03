@@ -1,12 +1,22 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Grid from '../components/Grid';
+import { useProfile } from '../contexts/ProfileContext';
 import { tauriAPI, QDeckConfig } from '../lib/tauri';
 import './Overlay.css';
 
 function Overlay() {
   const [config, setConfig] = useState<QDeckConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const {
+    currentProfile,
+    currentPage,
+    navigationContext,
+    nextPage,
+    previousPage,
+    loading: profileLoading,
+    error: profileError
+  } = useProfile();
 
   useEffect(() => {
     loadConfig();
@@ -25,9 +35,21 @@ function Overlay() {
   };
 
   const setupKeyboardHandlers = () => {
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = async (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         handleHideOverlay();
+      } else if (event.key === 'ArrowLeft' && navigationContext?.has_previous_page) {
+        event.preventDefault();
+        await previousPage();
+      } else if (event.key === 'ArrowRight' && navigationContext?.has_next_page) {
+        event.preventDefault();
+        await nextPage();
+      } else if (event.key === 'PageUp' && navigationContext?.has_previous_page) {
+        event.preventDefault();
+        await previousPage();
+      } else if (event.key === 'PageDown' && navigationContext?.has_next_page) {
+        event.preventDefault();
+        await nextPage();
       }
     };
 
@@ -47,7 +69,7 @@ function Overlay() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || profileLoading) {
     return (
       <div className="overlay-container">
         <div className="loading-spinner"></div>
@@ -55,9 +77,19 @@ function Overlay() {
     );
   }
 
+  if (profileError) {
+    return (
+      <div className="overlay-container">
+        <div className="error-message">
+          <p>Error loading profile: {profileError}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="overlay-container" onContextMenu={(e) => e.preventDefault()}>
-      {config && (
+      {config && currentProfile && currentPage && (
         <motion.div
           initial={{ opacity: 0, y: -150, scale: 0.8 }}
           animate={{ 
@@ -72,7 +104,41 @@ function Overlay() {
             }
           }}
         >
-          <Grid config={config} />
+          {/* Navigation header */}
+          {navigationContext && navigationContext.total_pages > 1 && (
+            <div className="navigation-header">
+              <div className="profile-info">
+                <span className="profile-name">{currentProfile.name}</span>
+                <span className="page-info">
+                  {currentPage.name} ({navigationContext.page_index + 1}/{navigationContext.total_pages})
+                </span>
+              </div>
+              <div className="page-navigation">
+                <button 
+                  className="nav-button"
+                  onClick={previousPage}
+                  disabled={!navigationContext.has_previous_page}
+                  title="Previous page (←, Page Up)"
+                >
+                  ←
+                </button>
+                <button 
+                  className="nav-button"
+                  onClick={nextPage}
+                  disabled={!navigationContext.has_next_page}
+                  title="Next page (→, Page Down)"
+                >
+                  →
+                </button>
+              </div>
+            </div>
+          )}
+          
+          <Grid 
+            config={config} 
+            currentProfile={currentProfile}
+            currentPage={currentPage}
+          />
         </motion.div>
       )}
     </div>

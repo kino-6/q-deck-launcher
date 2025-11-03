@@ -63,4 +63,4 @@ vi.mock('framer-motion', () => ({
 }));
 
 // Global test utilities
-global.mockTauriAPI = mockTauriAPI;
+(globalThis as any).mockTauriAPI = mockTauriAPI;

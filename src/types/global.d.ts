@@ -1,5 +1,3 @@
-/// <reference types="vite/client" />
-
 declare global {
   var mockTauriAPI: {
     getConfig: any;
@@ -30,3 +28,5 @@ declare global {
     calculateGridMetrics: any;
   };
 }
+
+export {};

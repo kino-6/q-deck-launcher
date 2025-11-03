@@ -57,7 +57,7 @@ export const mockConfig: QDeckConfig = {
   profiles: [
     {
       name: 'Default',
-      hotkey: null,
+      hotkey: undefined,
       pages: [
         {
           name: 'Main',

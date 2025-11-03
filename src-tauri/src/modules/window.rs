@@ -53,6 +53,10 @@ impl WindowManager {
         }
     }
 
+    pub fn get_app_handle(&self) -> &AppHandle {
+        &self.app_handle
+    }
+
     pub fn show_overlay(&self) -> Result<()> {
         info!("Attempting to show overlay window");
 
