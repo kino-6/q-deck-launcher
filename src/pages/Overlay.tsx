@@ -8,6 +8,7 @@ import './Overlay.css';
 function Overlay() {
   const [config, setConfig] = useState<QDeckConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const {
     currentProfile,
     currentPage,
@@ -20,8 +21,38 @@ function Overlay() {
 
   useEffect(() => {
     loadConfig();
-    setupKeyboardHandlers();
   }, []);
+
+  // Separate effect for keyboard handlers to ensure proper cleanup
+  useEffect(() => {
+    const handleKeyDown = async (event: KeyboardEvent) => {
+      // Don't handle Escape if a modal is open
+      if (event.key === 'Escape' && !isModalOpen) {
+        event.preventDefault();
+        event.stopPropagation();
+        await handleHideOverlay();
+      } else if (event.key === 'ArrowLeft' && navigationContext?.has_previous_page && !isModalOpen) {
+        event.preventDefault();
+        await previousPage();
+      } else if (event.key === 'ArrowRight' && navigationContext?.has_next_page && !isModalOpen) {
+        event.preventDefault();
+        await nextPage();
+      } else if (event.key === 'PageUp' && navigationContext?.has_previous_page && !isModalOpen) {
+        event.preventDefault();
+        await previousPage();
+      } else if (event.key === 'PageDown' && navigationContext?.has_next_page && !isModalOpen) {
+        event.preventDefault();
+        await nextPage();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    
+    // Cleanup function to remove event listener when component unmounts
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [navigationContext, previousPage, nextPage, isModalOpen]); // Add isModalOpen to dependencies
 
   const loadConfig = async () => {
     try {
@@ -32,33 +63,6 @@ function Overlay() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const setupKeyboardHandlers = () => {
-    const handleKeyDown = async (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        handleHideOverlay();
-      } else if (event.key === 'ArrowLeft' && navigationContext?.has_previous_page) {
-        event.preventDefault();
-        await previousPage();
-      } else if (event.key === 'ArrowRight' && navigationContext?.has_next_page) {
-        event.preventDefault();
-        await nextPage();
-      } else if (event.key === 'PageUp' && navigationContext?.has_previous_page) {
-        event.preventDefault();
-        await previousPage();
-      } else if (event.key === 'PageDown' && navigationContext?.has_next_page) {
-        event.preventDefault();
-        await nextPage();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    
-    // Cleanup
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
   };
 
   const handleHideOverlay = async () => {
@@ -138,6 +142,7 @@ function Overlay() {
             config={config} 
             currentProfile={currentProfile}
             currentPage={currentPage}
+            onModalStateChange={setIsModalOpen}
           />
         </motion.div>
       )}
