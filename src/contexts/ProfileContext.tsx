@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { listen } from '@tauri-apps/api/event';
-import tauriAPI, { ProfileInfo, PageInfo, NavigationContext } from '../lib/tauri';
+import { tauriAPI, ProfileInfo, PageInfo, NavigationContext } from '../lib/platform-api';
 
 interface ProfileContextType {
   profiles: ProfileInfo[];
@@ -201,16 +200,18 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
 
     const setupEventListeners = async () => {
       try {
+        // TODO: Implement event listeners for Electron
         // Listen for profile changes from hotkeys
-        unlistenProfileChanged = await listen('profile-changed', (event) => {
-          console.log('Profile changed event received:', event.payload);
-          const profileInfo = event.payload as ProfileInfo;
-          setCurrentProfile(profileInfo);
-          
-          // Refresh related data
-          refreshCurrentPage();
-          refreshNavigationContext();
-        });
+        // This is currently disabled as it requires Tauri-specific imports
+        // unlistenProfileChanged = await listen('profile-changed', (event) => {
+        //   console.log('Profile changed event received:', event.payload);
+        //   const profileInfo = event.payload as ProfileInfo;
+        //   setCurrentProfile(profileInfo);
+        //   
+        //   // Refresh related data
+        //   refreshCurrentPage();
+        //   refreshNavigationContext();
+        // });
       } catch (err) {
         console.error('Failed to set up event listeners:', err);
       }

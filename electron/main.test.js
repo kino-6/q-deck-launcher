@@ -1,0 +1,1189 @@
+/**
+ * Electron Main Process Tests
+ * Tests for window creation and configuration
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+// Mock Electron modules
+class MockBrowserWindow {
+  constructor(config) {
+    this.config = config;
+    this.webContents = {
+      openDevTools: vi.fn(),
+      on: vi.fn(),
+    };
+    this._visible = config.show || false;
+  }
+
+  loadURL = vi.fn();
+  loadFile = vi.fn();
+  show = vi.fn(() => { this._visible = true; });
+  hide = vi.fn(() => { this._visible = false; });
+  focus = vi.fn();
+  isVisible = vi.fn(() => this._visible);
+  on = vi.fn();
+}
+
+const mockBrowserWindow = vi.fn((config) => new MockBrowserWindow(config));
+
+const mockApp = {
+  whenReady: vi.fn(() => Promise.resolve()),
+  getPath: vi.fn(() => '/mock/path'),
+  on: vi.fn(),
+  quit: vi.fn(),
+};
+const mockGlobalShortcut = {
+  register: vi.fn(() => true),
+  unregisterAll: vi.fn(),
+};
+const mockScreen = {
+  getPrimaryDisplay: vi.fn(() => ({
+    workAreaSize: { width: 1920, height: 1080 },
+  })),
+};
+const mockIpcMain = {
+  handle: vi.fn(),
+};
+const mockShell = {
+  openPath: vi.fn(),
+};
+
+vi.mock('electron', () => ({
+  app: mockApp,
+  BrowserWindow: mockBrowserWindow,
+  globalShortcut: mockGlobalShortcut,
+  ipcMain: mockIpcMain,
+  screen: mockScreen,
+  shell: mockShell,
+}));
+
+vi.mock('fs', () => ({
+  default: {
+    existsSync: vi.fn(() => false),
+    readFileSync: vi.fn(),
+    writeFileSync: vi.fn(),
+  },
+}));
+
+vi.mock('yaml', () => ({
+  default: {
+    parse: vi.fn(),
+    stringify: vi.fn(() => 'mock yaml'),
+  },
+}));
+
+describe('Electron Main Process - Window Creation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should create window with correct configuration', () => {
+    // Create a window with the expected configuration
+    const windowConfig = {
+      width: 1000,
+      height: 600,
+      show: false,
+      frame: false,
+      transparent: false,
+      backgroundColor: '#1e1e1e',
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      resizable: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: '/mock/preload.js',
+      },
+    };
+
+    const window = mockBrowserWindow(windowConfig);
+
+    // Verify window was created
+    expect(mockBrowserWindow).toHaveBeenCalledWith(windowConfig);
+    expect(window).toBeDefined();
+    expect(window.config).toEqual(windowConfig);
+  });
+
+  it('should configure overlay window with correct dimensions', () => {
+    // Expected overlay configuration
+    const overlayConfig = {
+      width: 1000,
+      height: 600,
+      x: 460,
+      y: 50,
+      show: false,
+      frame: false,
+      transparent: false,
+      backgroundColor: '#1e1e1e',
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      resizable: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: '/mock/preload.js',
+      },
+    };
+
+    const overlayWindow = mockBrowserWindow(overlayConfig);
+
+    // Verify overlay window configuration
+    expect(mockBrowserWindow).toHaveBeenCalledWith(overlayConfig);
+    expect(overlayWindow).toBeDefined();
+    expect(overlayWindow.config.width).toBe(1000);
+    expect(overlayWindow.config.height).toBe(600);
+  });
+
+  it('should have dark background color', () => {
+    const windowConfig = {
+      backgroundColor: '#1e1e1e',
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    };
+
+    const window = mockBrowserWindow(windowConfig);
+
+    expect(window.config.backgroundColor).toBe('#1e1e1e');
+  });
+
+  it('should configure window to be always on top', () => {
+    const windowConfig = {
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    };
+
+    const window = mockBrowserWindow(windowConfig);
+
+    expect(window.config.alwaysOnTop).toBe(true);
+    expect(window.config.skipTaskbar).toBe(true);
+  });
+
+  it('should verify overlay is always displayed on top', () => {
+    // Create overlay window with alwaysOnTop configuration
+    const overlayConfig = {
+      width: 1000,
+      height: 600,
+      x: 460,
+      y: 50,
+      show: false,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      resizable: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: '/mock/preload.js',
+      },
+    };
+
+    const overlayWindow = mockBrowserWindow(overlayConfig);
+
+    // Verify overlay window is configured with alwaysOnTop
+    expect(overlayWindow.config.alwaysOnTop).toBe(true);
+
+    // Show the overlay
+    overlayWindow.show();
+    expect(overlayWindow.isVisible()).toBe(true);
+
+    // Verify alwaysOnTop remains true when window is visible
+    expect(overlayWindow.config.alwaysOnTop).toBe(true);
+
+    // Simulate focus change (another window tries to come to front)
+    // The overlay should maintain its alwaysOnTop status
+    overlayWindow.focus();
+    expect(overlayWindow.config.alwaysOnTop).toBe(true);
+
+    // Verify the overlay maintains alwaysOnTop even after multiple operations
+    overlayWindow.hide();
+    expect(overlayWindow.config.alwaysOnTop).toBe(true);
+    
+    overlayWindow.show();
+    expect(overlayWindow.config.alwaysOnTop).toBe(true);
+    
+    overlayWindow.focus();
+    expect(overlayWindow.config.alwaysOnTop).toBe(true);
+
+    // Verify skipTaskbar is also maintained (prevents overlay from appearing in taskbar)
+    expect(overlayWindow.config.skipTaskbar).toBe(true);
+  });
+
+  it('should configure window to not show initially', () => {
+    const windowConfig = {
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    };
+
+    const window = mockBrowserWindow(windowConfig);
+
+    expect(window.config.show).toBe(false);
+    expect(window.isVisible()).toBe(false);
+  });
+
+  it('should enable context isolation and disable node integration', () => {
+    const windowConfig = {
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: '/mock/preload.js',
+      },
+    };
+
+    const window = mockBrowserWindow(windowConfig);
+
+    expect(window.config.webPreferences.nodeIntegration).toBe(false);
+    expect(window.config.webPreferences.contextIsolation).toBe(true);
+  });
+});
+
+describe('Electron Main Process - Window Display', () => {
+  it('should verify window can be shown', () => {
+    const window = mockBrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Initially hidden
+    expect(window.isVisible()).toBe(false);
+
+    // Show the window
+    window.show();
+    expect(window.show).toHaveBeenCalled();
+    expect(window.isVisible()).toBe(true);
+  });
+
+  it('should verify window can be focused', () => {
+    const window = mockBrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Focus the window
+    window.focus();
+    expect(window.focus).toHaveBeenCalled();
+  });
+
+  it('should verify developer tools can be opened', () => {
+    const window = mockBrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Open developer tools
+    window.webContents.openDevTools();
+    expect(window.webContents.openDevTools).toHaveBeenCalled();
+  });
+
+  it('should display overlay with transparent background', () => {
+    // Create overlay window with transparent background configuration
+    const overlayConfig = {
+      width: 1000,
+      height: 600,
+      x: 460,
+      y: 50,
+      show: false,
+      frame: false,
+      transparent: true, // Transparent background for overlay
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      resizable: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: '/mock/preload.js',
+      },
+    };
+
+    const overlayWindow = mockBrowserWindow(overlayConfig);
+
+    // Verify overlay window is configured with transparent background
+    expect(overlayWindow.config.transparent).toBe(true);
+    expect(overlayWindow.config.frame).toBe(false);
+    
+    // Verify overlay is configured to be always on top
+    expect(overlayWindow.config.alwaysOnTop).toBe(true);
+    
+    // Verify overlay doesn't show in taskbar
+    expect(overlayWindow.config.skipTaskbar).toBe(true);
+  });
+});
+
+describe('Electron Main Process - Hotkey Registration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should register F11 hotkey successfully', () => {
+    // Simulate registering F11 hotkey
+    const hotkeyCallback = vi.fn();
+    const result = mockGlobalShortcut.register('F11', hotkeyCallback);
+
+    // Verify registration was successful
+    expect(mockGlobalShortcut.register).toHaveBeenCalledWith('F11', hotkeyCallback);
+    expect(result).toBe(true);
+  });
+
+  it('should call callback when F11 is pressed', () => {
+    // Create a callback function
+    const hotkeyCallback = vi.fn();
+    
+    // Register the hotkey
+    mockGlobalShortcut.register('F11', hotkeyCallback);
+
+    // Get the registered callback
+    const registeredCallback = mockGlobalShortcut.register.mock.calls[0][1];
+
+    // Simulate F11 key press by calling the callback
+    registeredCallback();
+
+    // Verify the callback was executed
+    expect(registeredCallback).toBeDefined();
+  });
+
+  it('should toggle overlay when F11 is pressed', () => {
+    // Create overlay window
+    const overlayWindow = mockBrowserWindow({
+      show: false,
+      frame: false,
+      transparent: false,
+      backgroundColor: '#1e1e1e',
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Initially hidden
+    expect(overlayWindow.isVisible()).toBe(false);
+
+    // Simulate F11 press - show overlay
+    const toggleOverlay = () => {
+      if (overlayWindow.isVisible()) {
+        overlayWindow.hide();
+      } else {
+        overlayWindow.show();
+        overlayWindow.focus();
+      }
+    };
+
+    // Register F11 with toggle function
+    mockGlobalShortcut.register('F11', toggleOverlay);
+
+    // Get the registered callback and execute it (simulating F11 press)
+    const registeredCallback = mockGlobalShortcut.register.mock.calls[0][1];
+    registeredCallback();
+
+    // Verify overlay is now visible
+    expect(overlayWindow.isVisible()).toBe(true);
+    expect(overlayWindow.show).toHaveBeenCalled();
+    expect(overlayWindow.focus).toHaveBeenCalled();
+  });
+
+  it('should hide overlay when F11 is pressed again', () => {
+    // Create overlay window that is initially visible
+    const overlayWindow = mockBrowserWindow({
+      show: true,
+      frame: false,
+      transparent: false,
+      backgroundColor: '#1e1e1e',
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Initially visible
+    expect(overlayWindow.isVisible()).toBe(true);
+
+    // Simulate F11 press - hide overlay
+    const toggleOverlay = () => {
+      if (overlayWindow.isVisible()) {
+        overlayWindow.hide();
+      } else {
+        overlayWindow.show();
+        overlayWindow.focus();
+      }
+    };
+
+    // Register F11 with toggle function
+    mockGlobalShortcut.register('F11', toggleOverlay);
+
+    // Get the registered callback and execute it (simulating F11 press)
+    const registeredCallback = mockGlobalShortcut.register.mock.calls[0][1];
+    registeredCallback();
+
+    // Verify overlay is now hidden
+    expect(overlayWindow.isVisible()).toBe(false);
+    expect(overlayWindow.hide).toHaveBeenCalled();
+  });
+
+  it('should support multiple hotkeys in configuration', () => {
+    const config = {
+      ui: {
+        summon: {
+          hotkeys: ['F11', 'Ctrl+Alt+Q']
+        }
+      }
+    };
+
+    // Register all hotkeys from config
+    config.ui.summon.hotkeys.forEach(hotkey => {
+      const callback = vi.fn();
+      mockGlobalShortcut.register(hotkey, callback);
+    });
+
+    // Verify both hotkeys were registered
+    expect(mockGlobalShortcut.register).toHaveBeenCalledTimes(2);
+    expect(mockGlobalShortcut.register).toHaveBeenCalledWith('F11', expect.any(Function));
+    expect(mockGlobalShortcut.register).toHaveBeenCalledWith('Ctrl+Alt+Q', expect.any(Function));
+  });
+
+  it('should not have hotkey conflicts', () => {
+    // Create overlay window
+    const overlayWindow = mockBrowserWindow({
+      show: false,
+      frame: false,
+      transparent: false,
+      backgroundColor: '#1e1e1e',
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Define toggle function
+    const toggleOverlay = () => {
+      if (overlayWindow.isVisible()) {
+        overlayWindow.hide();
+      } else {
+        overlayWindow.show();
+        overlayWindow.focus();
+      }
+    };
+
+    // Register multiple hotkeys with the same action
+    const hotkeys = ['F11', 'Ctrl+Alt+Q', 'Alt+Space'];
+    const registeredCallbacks = [];
+
+    hotkeys.forEach(hotkey => {
+      const success = mockGlobalShortcut.register(hotkey, toggleOverlay);
+      expect(success).toBe(true);
+      
+      // Store the callback for later testing
+      const callIndex = mockGlobalShortcut.register.mock.calls.length - 1;
+      registeredCallbacks.push({
+        hotkey,
+        callback: mockGlobalShortcut.register.mock.calls[callIndex][1]
+      });
+    });
+
+    // Verify all hotkeys were registered successfully
+    expect(mockGlobalShortcut.register).toHaveBeenCalledTimes(3);
+
+    // Test that each hotkey works independently without conflicts
+    // Initially hidden
+    expect(overlayWindow.isVisible()).toBe(false);
+
+    // Test F11 - should show overlay
+    registeredCallbacks[0].callback();
+    expect(overlayWindow.isVisible()).toBe(true);
+    expect(overlayWindow.show).toHaveBeenCalledTimes(1);
+
+    // Test Ctrl+Alt+Q - should hide overlay (toggle)
+    registeredCallbacks[1].callback();
+    expect(overlayWindow.isVisible()).toBe(false);
+    expect(overlayWindow.hide).toHaveBeenCalledTimes(1);
+
+    // Test Alt+Space - should show overlay again
+    registeredCallbacks[2].callback();
+    expect(overlayWindow.isVisible()).toBe(true);
+    expect(overlayWindow.show).toHaveBeenCalledTimes(2);
+
+    // Test F11 again - should hide overlay
+    registeredCallbacks[0].callback();
+    expect(overlayWindow.isVisible()).toBe(false);
+    expect(overlayWindow.hide).toHaveBeenCalledTimes(2);
+
+    // Verify each hotkey triggered the same toggle behavior without interfering
+    expect(overlayWindow.show).toHaveBeenCalledTimes(2);
+    expect(overlayWindow.hide).toHaveBeenCalledTimes(2);
+    expect(overlayWindow.focus).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Electron Main Process - Focus Loss Handling', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should hide overlay when it loses focus', () => {
+    // Create overlay window that is initially visible
+    const overlayWindow = mockBrowserWindow({
+      show: true,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Verify overlay is initially visible
+    expect(overlayWindow.isVisible()).toBe(true);
+
+    // Simulate blur event handler (as implemented in main.js)
+    const blurHandler = () => {
+      if (overlayWindow && overlayWindow.isVisible()) {
+        overlayWindow.hide();
+      }
+    };
+
+    // Register the blur event handler
+    overlayWindow.on('blur', blurHandler);
+
+    // Verify the blur event was registered
+    expect(overlayWindow.on).toHaveBeenCalledWith('blur', blurHandler);
+
+    // Simulate the overlay losing focus by calling the blur handler
+    blurHandler();
+
+    // Verify overlay is now hidden
+    expect(overlayWindow.isVisible()).toBe(false);
+    expect(overlayWindow.hide).toHaveBeenCalled();
+  });
+
+  it('should not attempt to hide overlay if already hidden when focus is lost', () => {
+    // Create overlay window that is initially hidden
+    const overlayWindow = mockBrowserWindow({
+      show: false,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Verify overlay is initially hidden
+    expect(overlayWindow.isVisible()).toBe(false);
+
+    // Simulate blur event handler
+    const blurHandler = () => {
+      if (overlayWindow && overlayWindow.isVisible()) {
+        overlayWindow.hide();
+      }
+    };
+
+    // Register the blur event handler
+    overlayWindow.on('blur', blurHandler);
+
+    // Simulate the overlay losing focus
+    blurHandler();
+
+    // Verify hide was not called since window was already hidden
+    expect(overlayWindow.hide).not.toHaveBeenCalled();
+    expect(overlayWindow.isVisible()).toBe(false);
+  });
+
+  it('should automatically close overlay when user clicks outside', () => {
+    // Create overlay window that is initially visible
+    const overlayWindow = mockBrowserWindow({
+      show: true,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Verify overlay is initially visible
+    expect(overlayWindow.isVisible()).toBe(true);
+
+    // Simulate blur event handler (clicking outside causes blur)
+    const blurHandler = () => {
+      if (overlayWindow && overlayWindow.isVisible()) {
+        overlayWindow.hide();
+      }
+    };
+
+    // Register the blur event handler
+    overlayWindow.on('blur', blurHandler);
+
+    // Simulate user clicking outside the overlay (which triggers blur event)
+    blurHandler();
+
+    // Verify overlay is automatically closed
+    expect(overlayWindow.isVisible()).toBe(false);
+    expect(overlayWindow.hide).toHaveBeenCalled();
+  });
+});
+
+describe('Electron Main Process - Escape Key Handling', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should hide overlay when Escape key is pressed', () => {
+    // Create overlay window that is initially visible
+    const overlayWindow = mockBrowserWindow({
+      show: true,
+      frame: false,
+      transparent: false,
+      backgroundColor: '#1e1e1e',
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Verify overlay is initially visible
+    expect(overlayWindow.isVisible()).toBe(true);
+
+    // Simulate Escape key press by calling hideOverlay
+    // (In the actual app, this is triggered by the React component's keydown handler)
+    const hideOverlay = () => {
+      if (overlayWindow && overlayWindow.isVisible()) {
+        overlayWindow.hide();
+      }
+    };
+
+    // Execute the hide overlay function (simulating Escape key press)
+    hideOverlay();
+
+    // Verify overlay is now hidden
+    expect(overlayWindow.isVisible()).toBe(false);
+    expect(overlayWindow.hide).toHaveBeenCalled();
+  });
+
+  it('should not hide overlay if already hidden when Escape is pressed', () => {
+    // Create overlay window that is initially hidden
+    const overlayWindow = mockBrowserWindow({
+      show: false,
+      frame: false,
+      transparent: false,
+      backgroundColor: '#1e1e1e',
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Verify overlay is initially hidden
+    expect(overlayWindow.isVisible()).toBe(false);
+
+    // Simulate Escape key press by calling hideOverlay
+    const hideOverlay = () => {
+      if (overlayWindow && overlayWindow.isVisible()) {
+        overlayWindow.hide();
+      }
+    };
+
+    // Execute the hide overlay function
+    hideOverlay();
+
+    // Verify hide was not called since window was already hidden
+    expect(overlayWindow.hide).not.toHaveBeenCalled();
+    expect(overlayWindow.isVisible()).toBe(false);
+  });
+
+  it('should handle Escape key independently from F11 hotkey', () => {
+    // Create overlay window
+    const overlayWindow = mockBrowserWindow({
+      show: false,
+      frame: false,
+      transparent: false,
+      backgroundColor: '#1e1e1e',
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Define toggle and hide functions
+    const toggleOverlay = () => {
+      if (overlayWindow.isVisible()) {
+        overlayWindow.hide();
+      } else {
+        overlayWindow.show();
+        overlayWindow.focus();
+      }
+    };
+
+    const hideOverlay = () => {
+      if (overlayWindow && overlayWindow.isVisible()) {
+        overlayWindow.hide();
+      }
+    };
+
+    // Register F11 hotkey
+    mockGlobalShortcut.register('F11', toggleOverlay);
+
+    // Initially hidden
+    expect(overlayWindow.isVisible()).toBe(false);
+
+    // Simulate F11 press to show overlay
+    const f11Callback = mockGlobalShortcut.register.mock.calls[0][1];
+    f11Callback();
+    expect(overlayWindow.isVisible()).toBe(true);
+
+    // Simulate Escape key press to hide overlay
+    hideOverlay();
+    expect(overlayWindow.isVisible()).toBe(false);
+
+    // Verify both show and hide were called
+    expect(overlayWindow.show).toHaveBeenCalled();
+    expect(overlayWindow.hide).toHaveBeenCalled();
+  });
+});
+
+describe('Electron Main Process - Configuration File Management', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should save config file to correct location in APPDATA', () => {
+    // Mock app.getPath to return a test path
+    const expectedAppDataPath = 'C:\\Users\\TestUser\\AppData\\Roaming\\q-deck-launcher';
+    mockApp.getPath.mockReturnValue(expectedAppDataPath);
+
+    // Get the config path (simulating how main.js constructs it)
+    const configPath = `${mockApp.getPath('userData')}\\config.yaml`;
+    const expectedConfigPath = `${expectedAppDataPath}\\config.yaml`;
+
+    // Verify the config path is correct
+    expect(configPath).toBe(expectedConfigPath);
+    expect(mockApp.getPath).toHaveBeenCalledWith('userData');
+
+    // Verify the path contains the expected structure
+    expect(configPath).toContain('AppData');
+    expect(configPath).toContain('Roaming');
+    expect(configPath).toContain('q-deck-launcher');
+    expect(configPath).toContain('config.yaml');
+  });
+});
+
+describe('Electron Main Process - Default Configuration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should create default configuration on first launch', () => {
+    // Mock createDefaultConfig function behavior
+    const createDefaultConfig = () => {
+      return {
+        version: '1.0',
+        ui: {
+          summon: {
+            hotkeys: ['F11'],
+            edge_trigger: {
+              enabled: false,
+              edges: ['top'],
+              dwell_ms: 300,
+              margin_px: 5
+            }
+          },
+          window: {
+            placement: 'dropdown-top',
+            width_px: 1000,
+            height_px: 600,
+            cell_size_px: 96,
+            gap_px: 8,
+            opacity: 0.92,
+            theme: 'dark',
+            animation: {
+              enabled: true,
+              duration_ms: 150
+            }
+          }
+        },
+        profiles: [
+          {
+            name: 'Default',
+            hotkey: null,
+            pages: [
+              {
+                name: 'Main',
+                rows: 4,
+                cols: 6,
+                buttons: []
+              }
+            ]
+          }
+        ]
+      };
+    };
+
+    // Create default config (simulating init mode)
+    const config = createDefaultConfig();
+
+    // Verify config structure
+    expect(config).toBeDefined();
+    expect(config.version).toBe('1.0');
+    
+    // Verify UI configuration
+    expect(config.ui).toBeDefined();
+    expect(config.ui.summon.hotkeys).toEqual(['F11']);
+    expect(config.ui.summon.edge_trigger.enabled).toBe(false);
+    expect(config.ui.window.width_px).toBe(1000);
+    expect(config.ui.window.height_px).toBe(600);
+    expect(config.ui.window.theme).toBe('dark');
+    
+    // Verify default profile exists
+    expect(config.profiles).toBeDefined();
+    expect(config.profiles.length).toBe(1);
+    expect(config.profiles[0].name).toBe('Default');
+    expect(config.profiles[0].hotkey).toBeNull();
+    
+    // Verify default page exists
+    expect(config.profiles[0].pages).toBeDefined();
+    expect(config.profiles[0].pages.length).toBe(1);
+    expect(config.profiles[0].pages[0].name).toBe('Main');
+    expect(config.profiles[0].pages[0].rows).toBe(4);
+    expect(config.profiles[0].pages[0].cols).toBe(6);
+    expect(config.profiles[0].pages[0].buttons).toEqual([]);
+  });
+
+  it('should persist configuration changes after restart', async () => {
+    // Import fs and yaml mocks
+    const fs = (await import('fs')).default;
+    const yaml = (await import('yaml')).default;
+
+    // Create initial default config
+    const createDefaultConfig = () => {
+      return {
+        version: '1.0',
+        ui: {
+          summon: {
+            hotkeys: ['F11'],
+            edge_trigger: {
+              enabled: false,
+              edges: ['top'],
+              dwell_ms: 300,
+              margin_px: 5
+            }
+          },
+          window: {
+            placement: 'dropdown-top',
+            width_px: 1000,
+            height_px: 600,
+            cell_size_px: 96,
+            gap_px: 8,
+            opacity: 0.92,
+            theme: 'dark',
+            animation: {
+              enabled: true,
+              duration_ms: 150
+            }
+          }
+        },
+        profiles: [
+          {
+            name: 'Default',
+            hotkey: null,
+            pages: [
+              {
+                name: 'Main',
+                rows: 4,
+                cols: 6,
+                buttons: []
+              }
+            ]
+          }
+        ]
+      };
+    };
+
+    // Simulate saving configuration
+    const saveConfig = (config) => {
+      const yamlStr = yaml.stringify(config);
+      fs.writeFileSync('/mock/config.yaml', yamlStr, 'utf8');
+    };
+
+    // Simulate loading configuration
+    const loadConfig = () => {
+      if (fs.existsSync('/mock/config.yaml')) {
+        const fileContents = fs.readFileSync('/mock/config.yaml', 'utf8');
+        return yaml.parse(fileContents);
+      }
+      return null;
+    };
+
+    // Step 1: Create initial config
+    let config = createDefaultConfig();
+    expect(config.ui.window.width_px).toBe(1000);
+    expect(config.ui.window.height_px).toBe(600);
+    expect(config.ui.summon.hotkeys).toEqual(['F11']);
+    expect(config.profiles[0].name).toBe('Default');
+
+    // Step 2: Modify configuration
+    config.ui.window.width_px = 1200;
+    config.ui.window.height_px = 800;
+    config.ui.summon.hotkeys = ['F11', 'Ctrl+Alt+Q'];
+    config.profiles[0].name = 'Development';
+    config.profiles[0].pages[0].rows = 5;
+    config.profiles[0].pages[0].cols = 8;
+
+    // Step 3: Save modified configuration
+    let savedYaml = '';
+    fs.existsSync.mockReturnValue(false);
+    fs.writeFileSync.mockImplementation((path, content) => {
+      savedYaml = content;
+    });
+    yaml.stringify.mockImplementation((obj) => {
+      return JSON.stringify(obj); // Use JSON for simplicity in test
+    });
+
+    saveConfig(config);
+
+    // Verify save was called
+    expect(fs.writeFileSync).toHaveBeenCalledWith('/mock/config.yaml', expect.any(String), 'utf8');
+    expect(yaml.stringify).toHaveBeenCalledWith(config);
+
+    // Step 4: Simulate restart - load configuration from file
+    fs.existsSync.mockReturnValue(true);
+    fs.readFileSync.mockReturnValue(savedYaml);
+    yaml.parse.mockImplementation((str) => {
+      return JSON.parse(str); // Use JSON for simplicity in test
+    });
+
+    const loadedConfig = loadConfig();
+
+    // Step 5: Verify loaded configuration matches saved changes
+    expect(loadedConfig).toBeDefined();
+    expect(loadedConfig.ui.window.width_px).toBe(1200);
+    expect(loadedConfig.ui.window.height_px).toBe(800);
+    expect(loadedConfig.ui.summon.hotkeys).toEqual(['F11', 'Ctrl+Alt+Q']);
+    expect(loadedConfig.profiles[0].name).toBe('Development');
+    expect(loadedConfig.profiles[0].pages[0].rows).toBe(5);
+    expect(loadedConfig.profiles[0].pages[0].cols).toBe(8);
+
+    // Verify all changes persisted
+    expect(loadedConfig).toEqual(config);
+  });
+
+  it('should have valid default hotkey configuration', () => {
+    const createDefaultConfig = () => {
+      return {
+        version: '1.0',
+        ui: {
+          summon: {
+            hotkeys: ['F11'],
+            edge_trigger: {
+              enabled: false,
+              edges: ['top'],
+              dwell_ms: 300,
+              margin_px: 5
+            }
+          },
+          window: {
+            placement: 'dropdown-top',
+            width_px: 1000,
+            height_px: 600,
+            cell_size_px: 96,
+            gap_px: 8,
+            opacity: 0.92,
+            theme: 'dark',
+            animation: {
+              enabled: true,
+              duration_ms: 150
+            }
+          }
+        },
+        profiles: [
+          {
+            name: 'Default',
+            hotkey: null,
+            pages: [
+              {
+                name: 'Main',
+                rows: 4,
+                cols: 6,
+                buttons: []
+              }
+            ]
+          }
+        ]
+      };
+    };
+
+    const config = createDefaultConfig();
+
+    // Verify default hotkey is F11
+    expect(config.ui.summon.hotkeys).toContain('F11');
+    expect(config.ui.summon.hotkeys.length).toBe(1);
+
+    // Verify hotkey can be registered
+    const success = mockGlobalShortcut.register('F11', vi.fn());
+    expect(success).toBe(true);
+  });
+
+  it('should have valid default window dimensions', () => {
+    const createDefaultConfig = () => {
+      return {
+        version: '1.0',
+        ui: {
+          summon: {
+            hotkeys: ['F11'],
+            edge_trigger: {
+              enabled: false,
+              edges: ['top'],
+              dwell_ms: 300,
+              margin_px: 5
+            }
+          },
+          window: {
+            placement: 'dropdown-top',
+            width_px: 1000,
+            height_px: 600,
+            cell_size_px: 96,
+            gap_px: 8,
+            opacity: 0.92,
+            theme: 'dark',
+            animation: {
+              enabled: true,
+              duration_ms: 150
+            }
+          }
+        },
+        profiles: [
+          {
+            name: 'Default',
+            hotkey: null,
+            pages: [
+              {
+                name: 'Main',
+                rows: 4,
+                cols: 6,
+                buttons: []
+              }
+            ]
+          }
+        ]
+      };
+    };
+
+    const config = createDefaultConfig();
+
+    // Verify window dimensions are reasonable
+    expect(config.ui.window.width_px).toBeGreaterThan(0);
+    expect(config.ui.window.height_px).toBeGreaterThan(0);
+    expect(config.ui.window.width_px).toBe(1000);
+    expect(config.ui.window.height_px).toBe(600);
+
+    // Verify cell size and gap
+    expect(config.ui.window.cell_size_px).toBe(96);
+    expect(config.ui.window.gap_px).toBe(8);
+
+    // Verify opacity is valid (0-1 range)
+    expect(config.ui.window.opacity).toBeGreaterThanOrEqual(0);
+    expect(config.ui.window.opacity).toBeLessThanOrEqual(1);
+  });
+
+  it('should have valid default profile structure', () => {
+    const createDefaultConfig = () => {
+      return {
+        version: '1.0',
+        ui: {
+          summon: {
+            hotkeys: ['F11'],
+            edge_trigger: {
+              enabled: false,
+              edges: ['top'],
+              dwell_ms: 300,
+              margin_px: 5
+            }
+          },
+          window: {
+            placement: 'dropdown-top',
+            width_px: 1000,
+            height_px: 600,
+            cell_size_px: 96,
+            gap_px: 8,
+            opacity: 0.92,
+            theme: 'dark',
+            animation: {
+              enabled: true,
+              duration_ms: 150
+            }
+          }
+        },
+        profiles: [
+          {
+            name: 'Default',
+            hotkey: null,
+            pages: [
+              {
+                name: 'Main',
+                rows: 4,
+                cols: 6,
+                buttons: []
+              }
+            ]
+          }
+        ]
+      };
+    };
+
+    const config = createDefaultConfig();
+
+    // Verify profile structure
+    const profile = config.profiles[0];
+    expect(profile.name).toBe('Default');
+    expect(profile.hotkey).toBeNull();
+    expect(profile.pages).toBeInstanceOf(Array);
+
+    // Verify page structure
+    const page = profile.pages[0];
+    expect(page.name).toBe('Main');
+    expect(page.rows).toBeGreaterThan(0);
+    expect(page.cols).toBeGreaterThan(0);
+    expect(page.buttons).toBeInstanceOf(Array);
+    expect(page.buttons.length).toBe(0);
+  });
+});

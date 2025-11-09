@@ -12,6 +12,7 @@ use modules::{
     profile::ProfileManager,
     window::{WindowManager, WindowConfig},
     icon::{IconService, IconInfo, CacheStats},
+    drag_drop::{DragDropService, DroppedFile, ButtonGenerationRequest, ButtonGenerationResult, UndoOperation},
 };
 
 // Application state
@@ -23,6 +24,7 @@ pub struct AppState {
     profile_manager: Mutex<ProfileManager>,
     window_manager: Mutex<WindowManager>,
     icon_service: Mutex<IconService>,
+    drag_drop_service: Mutex<DragDropService>,
 }
 
 // Tauri commands
@@ -112,18 +114,27 @@ async fn execute_action(action_id: String, state: State<'_, AppState>) -> Result
     
     // Find the action in the configuration
     let mut action_config = None;
+    tracing::info!("🔍 Searching for action: {}", action_id);
+    
     'outer: for profile in &config.profiles {
+        tracing::debug!("🔍 Checking profile: {}", profile.name);
         for page in &profile.pages {
+            tracing::debug!("🔍 Checking page: {}", page.name);
             for button in &page.buttons {
                 // Create a unique ID for each button (profile:page:row:col)
                 let button_id = format!("{}:{}:{}:{}", 
                     profile.name, page.name, button.position.row, button.position.col);
                 
+                tracing::debug!("🔍 Checking button: {} (ID: {}, Label: {})", button.label, button_id, button.label);
+                
                 if button_id == action_id || button.label == action_id {
+                    tracing::info!("✅ Found matching button: {}", button.label);
                     // Convert button config to ActionConfig
                     if let Some(config) = button_to_action_config(button) {
                         action_config = Some(config);
                         break 'outer;
+                    } else {
+                        tracing::warn!("⚠️ Failed to convert button config for: {}", button.label);
                     }
                 }
             }
@@ -329,6 +340,109 @@ async fn cleanup_logs_by_size(max_size_mb: u64, state: State<'_, AppState>) -> R
     logger.cleanup_logs_by_size(max_size_mb).map_err(|e| e.to_string())
 }
 
+// Drag and drop commands
+#[tauri::command]
+async fn analyze_dropped_files(file_paths: Vec<String>, state: State<'_, AppState>) -> Result<Vec<DroppedFile>, String> {
+    tracing::info!("🎯 TAURI_COMMAND - analyze_dropped_files called");
+    tracing::info!("🎯 TAURI_COMMAND - Input file_paths: {:?}", file_paths);
+    tracing::info!("🎯 TAURI_COMMAND - Number of paths: {}", file_paths.len());
+    
+    // Log current working directory at command level
+    if let Ok(current_dir) = std::env::current_dir() {
+        tracing::info!("🎯 TAURI_COMMAND - Current working directory: {}", current_dir.display());
+    }
+    
+    let drag_drop_service = state.drag_drop_service.lock().map_err(|e| {
+        tracing::error!("❌ TAURI_COMMAND - Failed to lock drag_drop_service: {}", e);
+        e.to_string()
+    })?;
+    
+    match drag_drop_service.analyze_dropped_files(file_paths) {
+        Ok(result) => {
+            tracing::info!("✅ TAURI_COMMAND - analyze_dropped_files completed successfully");
+            tracing::info!("✅ TAURI_COMMAND - Analyzed {} files", result.len());
+            for (index, file) in result.iter().enumerate() {
+                tracing::info!("✅ TAURI_COMMAND - File[{}]: '{}' -> {:?}", index, file.path, file.file_type);
+            }
+            Ok(result)
+        }
+        Err(e) => {
+            tracing::error!("❌ TAURI_COMMAND - analyze_dropped_files failed: {}", e);
+            Err(e.to_string())
+        }
+    }
+}
+
+#[tauri::command]
+async fn generate_buttons_from_files(request: ButtonGenerationRequest, state: State<'_, AppState>) -> Result<ButtonGenerationResult, String> {
+    tracing::info!("🎯 TAURI_COMMAND - generate_buttons_from_files called");
+    tracing::info!("🎯 TAURI_COMMAND - Request files count: {}", request.files.len());
+    tracing::info!("🎯 TAURI_COMMAND - Target position: {:?}", request.target_position);
+    tracing::info!("🎯 TAURI_COMMAND - Grid size: {}x{}", request.grid_rows, request.grid_cols);
+    
+    for (index, file) in request.files.iter().enumerate() {
+        tracing::info!("🎯 TAURI_COMMAND - Request file[{}]: '{}' ({:?})", index, file.path, file.file_type);
+    }
+    
+    let mut drag_drop_service = state.drag_drop_service.lock().map_err(|e| {
+        tracing::error!("❌ TAURI_COMMAND - Failed to lock drag_drop_service: {}", e);
+        e.to_string()
+    })?;
+    
+    match drag_drop_service.generate_buttons_from_files(request) {
+        Ok(result) => {
+            tracing::info!("✅ TAURI_COMMAND - generate_buttons_from_files completed successfully");
+            tracing::info!("✅ TAURI_COMMAND - Generated {} buttons", result.generated_buttons.len());
+            tracing::info!("✅ TAURI_COMMAND - {} conflicts, {} errors", result.conflicts.len(), result.errors.len());
+            
+            for (index, button) in result.generated_buttons.iter().enumerate() {
+                if let Some(target) = button.config.get("target") {
+                    tracing::info!("✅ TAURI_COMMAND - Generated button[{}]: '{}' -> target: '{}'", 
+                        index, button.label, target.as_str().unwrap_or("N/A"));
+                }
+            }
+            
+            Ok(result)
+        }
+        Err(e) => {
+            tracing::error!("❌ TAURI_COMMAND - generate_buttons_from_files failed: {}", e);
+            Err(e.to_string())
+        }
+    }
+}
+
+#[tauri::command]
+async fn add_undo_operation(operation: UndoOperation, state: State<'_, AppState>) -> Result<(), String> {
+    let mut drag_drop_service = state.drag_drop_service.lock().map_err(|e| e.to_string())?;
+    drag_drop_service.add_undo_operation(operation);
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_last_undo_operation(state: State<'_, AppState>) -> Result<Option<UndoOperation>, String> {
+    let drag_drop_service = state.drag_drop_service.lock().map_err(|e| e.to_string())?;
+    Ok(drag_drop_service.get_last_undo_operation().cloned())
+}
+
+#[tauri::command]
+async fn undo_last_operation(state: State<'_, AppState>) -> Result<Option<UndoOperation>, String> {
+    let mut drag_drop_service = state.drag_drop_service.lock().map_err(|e| e.to_string())?;
+    Ok(drag_drop_service.pop_undo_operation())
+}
+
+#[tauri::command]
+async fn clear_undo_history(state: State<'_, AppState>) -> Result<(), String> {
+    let mut drag_drop_service = state.drag_drop_service.lock().map_err(|e| e.to_string())?;
+    drag_drop_service.clear_undo_history();
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_undo_stats(state: State<'_, AppState>) -> Result<(usize, usize), String> {
+    let drag_drop_service = state.drag_drop_service.lock().map_err(|e| e.to_string())?;
+    Ok(drag_drop_service.get_undo_stats())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize logging first
@@ -345,17 +459,65 @@ pub fn run() {
     let action_runner = ActionRunner::new()
         .expect("Failed to initialize action runner");
     
-    let profile_manager = ProfileManager::new()
+    let _profile_manager = ProfileManager::new()
         .expect("Failed to initialize profile manager");
     
     let icon_service = IconService::new()
         .expect("Failed to initialize icon service");
+    
+    let drag_drop_service = DragDropService::new()
+        .expect("Failed to initialize drag drop service");
 
     tracing::info!("Starting Q-Deck application");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            // Change working directory to the parent of src-tauri (project root)
+            if let Ok(current_exe) = std::env::current_exe() {
+                tracing::info!("🔍 STARTUP - Current executable: {}", current_exe.display());
+                if let Some(exe_dir) = current_exe.parent() {
+                    tracing::info!("🔍 STARTUP - Executable directory: {}", exe_dir.display());
+                    
+                    // Check if we're in development mode (target/debug) or production (src-tauri)
+                    let dir_name = exe_dir.file_name().and_then(|n| n.to_str());
+                    tracing::info!("🔍 STARTUP - Directory name: {:?}", dir_name);
+                    
+                    let project_root = if dir_name == Some("src-tauri") {
+                        // Production build
+                        exe_dir.parent()
+                    } else if dir_name == Some("debug") || dir_name == Some("release") {
+                        // Development build (target/debug or target/release)
+                        // Go up: target/debug -> target -> src-tauri -> project_root
+                        exe_dir.parent().and_then(|p| p.parent()).and_then(|p| p.parent())
+                    } else {
+                        None
+                    };
+                    
+                    if let Some(project_root) = project_root {
+                        tracing::info!("🔍 STARTUP - Attempting to change to project root: {}", project_root.display());
+                        if let Err(e) = std::env::set_current_dir(project_root) {
+                            tracing::warn!("Failed to change working directory to project root: {}", e);
+                        } else {
+                            tracing::info!("✅ Changed working directory to: {}", project_root.display());
+                        }
+                    } else {
+                        tracing::warn!("Could not determine project root from executable path");
+                    }
+                } else {
+                    tracing::warn!("Could not get parent directory of executable");
+                }
+            } else {
+                tracing::warn!("Could not get current executable path");
+            }
+            
+            // Log current working directory for debugging
+            if let Ok(current_dir) = std::env::current_dir() {
+                tracing::info!("🔍 STARTUP - Current working directory: {}", current_dir.display());
+            } else {
+                tracing::error!("❌ STARTUP - Failed to get current working directory");
+            }
+            
             // Initialize window manager with app handle
             let window_manager = WindowManager::new(app.handle().clone());
             
@@ -479,15 +641,8 @@ pub fn run() {
                 }
             }
 
-            // Register Escape key to hide overlay
-            match hotkey_service.register_hotkey("Escape", "hide_overlay".to_string()) {
-                Ok(id) => {
-                    tracing::info!("✅ Registered Escape key for hiding overlay with ID {}", id);
-                }
-                Err(e) => {
-                    tracing::warn!("⚠️ Failed to register Escape key: {}", e);
-                }
-            }
+            // Note: Escape key should be handled by the frontend when overlay is visible,
+            // not as a global hotkey. Global Escape would interfere with other applications.
 
             // Start hotkey message loop
             if let Err(e) = hotkey_service.start_message_loop() {
@@ -511,6 +666,7 @@ pub fn run() {
                 profile_manager: Mutex::new(profile_manager),
                 window_manager: Mutex::new(window_manager),
                 icon_service: Mutex::new(icon_service),
+                drag_drop_service: Mutex::new(drag_drop_service),
             };
 
             app.manage(app_state);
@@ -549,7 +705,14 @@ pub fn run() {
             switch_to_page,
             next_page,
             previous_page,
-            get_navigation_context
+            get_navigation_context,
+            analyze_dropped_files,
+            generate_buttons_from_files,
+            add_undo_operation,
+            get_last_undo_operation,
+            undo_last_operation,
+            clear_undo_history,
+            get_undo_stats
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -558,9 +721,14 @@ pub fn run() {
 fn button_to_action_config(button: &modules::config::ActionButton) -> Option<modules::action::ActionConfig> {
     use modules::config::ActionType;
     
+    tracing::debug!("🔄 Converting button config for: {} (type: {:?})", button.label, button.action_type);
+    
     match button.action_type {
         ActionType::LaunchApp => {
+            tracing::debug!("🚀 Processing LaunchApp action");
             let path = button.config.get("path")?.as_str()?.to_string();
+            tracing::debug!("📁 App path: {}", path);
+            
             let args = button.config.get("args")
                 .and_then(|v| v.as_array())
                 .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect());
@@ -573,18 +741,28 @@ fn button_to_action_config(button: &modules::config::ActionButton) -> Option<mod
                     .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
                     .collect());
             
-            Some(modules::action::ActionConfig::LaunchApp { path, args, workdir, env })
+            let action_config = modules::action::ActionConfig::LaunchApp { path, args, workdir, env };
+            tracing::debug!("✅ Created LaunchApp config");
+            Some(action_config)
         }
         ActionType::Open => {
+            tracing::debug!("📂 Processing Open action");
             let target = button.config.get("target")?.as_str()?.to_string();
+            tracing::debug!("🎯 Open target: {}", target);
+            
             let verb = button.config.get("verb")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
             
-            Some(modules::action::ActionConfig::Open { target, verb })
+            let action_config = modules::action::ActionConfig::Open { target, verb };
+            tracing::debug!("✅ Created Open config");
+            Some(action_config)
         }
         ActionType::Terminal => {
+            tracing::debug!("💻 Processing Terminal action");
             let terminal = button.config.get("terminal")?.as_str()?.to_string();
+            tracing::debug!("🖥️ Terminal type: {}", terminal);
+            
             let profile = button.config.get("profile")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
@@ -603,7 +781,9 @@ fn button_to_action_config(button: &modules::config::ActionButton) -> Option<mod
                 .and_then(|v| v.as_array())
                 .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect());
             
-            Some(modules::action::ActionConfig::Terminal { terminal, profile, workdir, command, env, args })
+            let action_config = modules::action::ActionConfig::Terminal { terminal, profile, workdir, command, env, args };
+            tracing::debug!("✅ Created Terminal config");
+            Some(action_config)
         }
         ActionType::MultiAction => {
             let actions_array = button.config.get("actions")?.as_array()?;
@@ -637,6 +817,9 @@ fn button_to_action_config(button: &modules::config::ActionButton) -> Option<mod
             
             Some(modules::action::ActionConfig::MultiAction { actions, delay_between_ms, stop_on_error })
         }
-        _ => None, // SendKeys, PowerShell, Folder not implemented yet
+        _ => {
+            tracing::warn!("⚠️ Unsupported action type: {:?}", button.action_type);
+            None // SendKeys, PowerShell, Folder not implemented yet
+        }
     }
 }

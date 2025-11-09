@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>File Drop Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .drop-zone {
+            width: 400px;
+            height: 200px;
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            background-color: #f9f9f9;
+        }
+        .drop-zone.drag-over {
+            border-color: #007acc;
+            background-color: #e6f3ff;
+        }
+        #log {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tauri File Drop Test</h1>
+    <div class="drop-zone" id="dropZone">
+        Drop files here to test
+    </div>
+    <div id="log"></div>
+
+    <script type="module">
+        import { listen } from '@tauri-apps/api/event';
+        import { getCurrentWindow } from '@tauri-apps/api/window';
+
+        const log = document.getElementById('log');
+        const dropZone = document.getElementById('dropZone');
+
+        function addLog(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `[${timestamp}] ${message}<br>`;
+            log.scrollTop = log.scrollHeight;
+            console.log(message);
+        }
+
+        addLog('🔧 Initializing file drop test...');
+
+        // HTML drag and drop events
+        dropZone.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+            addLog('🎯 HTML dragenter detected');
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            addLog('🎯 HTML dragover detected');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            addLog('🎯 HTML dragleave detected');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            addLog(`🎯 HTML drop detected: ${e.dataTransfer.files.length} files`);
+        });
+
+        // Tauri file drop events
+        async function setupTauriListeners() {
+            try {
+                addLog('🔧 Setting up Tauri listeners...');
+                
+                const currentWindow = getCurrentWindow();
+                addLog('🔧 Got current window');
+
+                // Method 1: Window-specific listeners
+                try {
+                    await currentWindow.listen('tauri://file-drop-hover', (event) => {
+                        addLog(`🎯 Tauri hover: ${JSON.stringify(event.payload)}`);
+                    });
+                    addLog('✅ Window hover listener registered');
+
+                    await currentWindow.listen('tauri://file-drop', (event) => {
+                        addLog(`🎯 Tauri drop: ${JSON.stringify(event.payload)}`);
+                    });
+                    addLog('✅ Window drop listener registered');
+
+                    await currentWindow.listen('tauri://file-drop-cancelled', (event) => {
+                        addLog(`🎯 Tauri cancelled: ${JSON.stringify(event.payload)}`);
+                    });
+                    addLog('✅ Window cancelled listener registered');
+                } catch (windowError) {
+                    addLog(`❌ Window listeners failed: ${windowError}`);
+                    
+                    // Method 2: Global listeners fallback
+                    try {
+                        await listen('tauri://file-drop-hover', (event) => {
+                            addLog(`🎯 Global Tauri hover: ${JSON.stringify(event.payload)}`);
+                        });
+                        addLog('✅ Global hover listener registered');
+
+                        await listen('tauri://file-drop', (event) => {
+                            addLog(`🎯 Global Tauri drop: ${JSON.stringify(event.payload)}`);
+                        });
+                        addLog('✅ Global drop listener registered');
+
+                        await listen('tauri://file-drop-cancelled', (event) => {
+                            addLog(`🎯 Global Tauri cancelled: ${JSON.stringify(event.payload)}`);
+                        });
+                        addLog('✅ Global cancelled listener registered');
+                    } catch (globalError) {
+                        addLog(`❌ Global listeners also failed: ${globalError}`);
+                    }
+                }
+            } catch (error) {
+                addLog(`❌ Setup failed: ${error}`);
+            }
+        }
+
+        setupTauriListeners();
+        addLog('🔧 Test page ready');
+    </script>
+</body>
+</html>

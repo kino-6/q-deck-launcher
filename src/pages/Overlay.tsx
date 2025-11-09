@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Grid from '../components/Grid';
 import { useProfile } from '../contexts/ProfileContext';
-import { tauriAPI, QDeckConfig } from '../lib/tauri';
+import { tauriAPI, QDeckConfig } from '../lib/platform-api';
 import './Overlay.css';
 
 function Overlay() {
@@ -30,7 +30,8 @@ function Overlay() {
       if (event.key === 'Escape' && !isModalOpen) {
         event.preventDefault();
         event.stopPropagation();
-        await handleHideOverlay();
+        // Use platform-specific API to hide overlay
+        await tauriAPI.hideOverlay();
       } else if (event.key === 'ArrowLeft' && navigationContext?.has_previous_page && !isModalOpen) {
         event.preventDefault();
         await previousPage();
@@ -67,6 +68,7 @@ function Overlay() {
 
   const handleHideOverlay = async () => {
     try {
+      // Use platform-specific API to hide overlay
       await tauriAPI.hideOverlay();
     } catch (err) {
       console.error('Failed to hide overlay:', err);

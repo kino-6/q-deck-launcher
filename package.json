@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -11,6 +12,11 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:build:debug": "tauri build --debug",
+    "electron:dev": "concurrently \"cross-env NODE_ENV=development npm run dev\" \"wait-on http://localhost:1420 && cross-env NODE_ENV=development electron .\"",
+    "electron:build": "npm run build && electron-builder",
+    "electron:build:win": "npm run build && electron-builder --win",
+    "electron:build:mac": "npm run build && electron-builder --mac",
+    "electron:build:linux": "npm run build && electron-builder --linux",
     "test": "vitest --run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
@@ -21,16 +27,18 @@
     "setup": "npm install && npm run check"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/api": "^2.9.0",
+    "@tauri-apps/plugin-opener": "^2.5.2",
     "framer-motion": "^12.23.24",
+    "node-global-key-listener": "^0.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "styled-components": "^6.1.19",
+    "yaml": "^2.8.1",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2",
+    "@tauri-apps/cli": "^2.9.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
@@ -38,10 +46,40 @@
     "@types/react-dom": "^19.1.6",
     "@types/styled-components": "^5.1.35",
     "@vitejs/plugin-react": "^4.6.0",
+    "@vitest/coverage-v8": "^4.0.6",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^39.1.1",
+    "electron-builder": "^26.0.12",
     "jsdom": "^27.1.0",
     "rimraf": "^6.1.0",
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
-    "vitest": "^4.0.6"
+    "vitest": "^4.0.6",
+    "wait-on": "^9.0.3"
+  },
+  "build": {
+    "appId": "com.tkino.q-deck-launcher",
+    "productName": "Q-Deck Launcher",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "src-tauri/icons/icon.ico"
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": "src-tauri/icons/icon.icns"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "src-tauri/icons/128x128.png"
+    }
   }
 }

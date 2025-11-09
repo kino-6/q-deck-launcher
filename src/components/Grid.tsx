@@ -4,7 +4,7 @@ import ActionButton from './ActionButton';
 import ContextMenu from './ContextMenu';
 import ThemeSelector from './ThemeSelector';
 import GridDragDrop from './GridDragDrop';
-import { QDeckConfig, tauriAPI, ActionButton as ActionButtonType, ProfileInfo, PageInfo, ButtonStyle, UndoOperation } from '../lib/tauri';
+import { QDeckConfig, tauriAPI, ActionButton as ActionButtonType, ProfileInfo, PageInfo, ButtonStyle, UndoOperation } from '../lib/platform-api';
 import './Grid.css';
 
 interface GridProps {

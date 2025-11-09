@@ -26,7 +26,8 @@
         "decorations": true,
         "alwaysOnTop": false,
         "visible": false,
-        "transparent": false
+        "transparent": false,
+        "dragDropEnabled": true
       },
       {
         "label": "overlay",
@@ -45,6 +46,7 @@
         "skipTaskbar": true,
         "shadow": false,
         "focus": true,
+        "dragDropEnabled": false,
         "url": "/overlay"
       }
     ],

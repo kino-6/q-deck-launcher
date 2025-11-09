@@ -1,4 +1,4 @@
-import { QDeckConfig, ActionButton } from '../lib/tauri';
+import { QDeckConfig, ActionButton, ProfileInfo, PageInfo } from '../lib/platform-api';
 
 export const mockConfig: QDeckConfig = {
   version: '1.0',
@@ -150,4 +150,20 @@ export const mockButton: ActionButton = {
     action_type: 'system',
     system_action: 'config',
   },
+};
+
+export const mockProfile: ProfileInfo = {
+  name: 'Default',
+  index: 0,
+  page_count: 1,
+  current_page_index: 0,
+  hotkey: 'Ctrl+1',
+};
+
+export const mockPage: PageInfo = {
+  name: 'Main',
+  index: 0,
+  rows: 3,
+  cols: 6,
+  button_count: 2,
 };

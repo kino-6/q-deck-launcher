@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple HTML Drag Drop in Tauri</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1e1e1e;
+            color: #fff;
+        }
+        
+        .drop-zone {
+            width: 400px;
+            height: 200px;
+            border: 3px dashed #666;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px auto;
+            background: #2d2d2d;
+            transition: all 0.3s ease;
+        }
+        
+        .drop-zone.drag-over {
+            border-color: #4CAF50;
+            background: #1a4a1a;
+        }
+        
+        .log {
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple HTML Drag Drop Test (No Tauri APIs)</h1>
+    
+    <div class="drop-zone" id="dropZone">
+        Drop files here
+    </div>
+    
+    <div class="log" id="log"></div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const logEl = document.getElementById('log');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            console.log(logMessage);
+            logEl.textContent += logMessage + '\n';
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        log('Simple HTML drag drop test initialized');
+        log('NO Tauri APIs used - pure HTML only');
+        
+        // HTML drag and drop events only
+        dropZone.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            log('HTML DRAGENTER detected');
+            dropZone.classList.add('drag-over');
+        });
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        });
+        
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            log('HTML DRAGLEAVE detected');
+            dropZone.classList.remove('drag-over');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            log('=== HTML DROP DETECTED ===');
+            log(`Files count: ${e.dataTransfer.files.length}`);
+            
+            for (let i = 0; i < e.dataTransfer.files.length; i++) {
+                const file = e.dataTransfer.files[i];
+                log(`File ${i + 1}: ${file.name}`);
+                log(`  Type: ${file.type || 'unknown'}`);
+                log(`  Size: ${file.size} bytes`);
+                
+                // Check for Tauri-specific path property
+                if (file.path) {
+                    log(`  Path: ${file.path} (Tauri context detected!)`);
+                } else {
+                    log(`  Path: Not available (normal web context)`);
+                }
+            }
+            
+            dropZone.classList.remove('drag-over');
+            log('=== END HTML DROP ===');
+        });
+        
+        log('HTML drag drop events registered successfully');
+        log('Ready for testing...');
+    </script>
+</body>
+</html>

@@ -45,12 +45,26 @@ const mockTauriAPI = {
   getCurrentMonitor: vi.fn(),
   getOptimalGridLayout: vi.fn(),
   calculateGridMetrics: vi.fn(),
+  // Profile management APIs
+  getProfiles: vi.fn(),
+  getCurrentProfile: vi.fn(),
+  getCurrentProfilePages: vi.fn(),
+  getCurrentPage: vi.fn(),
+  getNavigationContext: vi.fn(),
+  switchToProfile: vi.fn(),
+  switchToProfileByName: vi.fn(),
+  switchToPage: vi.fn(),
+  nextPage: vi.fn(),
+  previousPage: vi.fn(),
 };
 
 vi.mock('../lib/tauri', () => ({
+  default: mockTauriAPI,
   tauriAPI: mockTauriAPI,
   ActionButton: {},
   QDeckConfig: {},
+  ProfileInfo: {},
+  PageInfo: {},
 }));
 
 // Mock framer-motion

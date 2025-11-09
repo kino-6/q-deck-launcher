@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Grid from './components/Grid';
 import Overlay from './pages/Overlay';
 import { ProfileProvider } from './contexts/ProfileContext';
-import { tauriAPI, QDeckConfig, ParsedHotkey } from './lib/tauri';
+import { tauriAPI, QDeckConfig, ParsedHotkey } from './lib/platform-api';
 import "./App.css";
 
 function App() {
@@ -16,8 +16,17 @@ function App() {
 
   useEffect(() => {
     // Check if we're in overlay mode based on URL
-    const isOverlay = window.location.pathname === '/overlay';
+    // Support both /overlay and #/overlay (hash routing)
+    const isOverlay = window.location.pathname === '/overlay' || 
+                      window.location.hash === '#/overlay' ||
+                      window.location.pathname.endsWith('/overlay');
     setIsOverlayMode(isOverlay);
+    
+    console.log('App mode detection:', {
+      pathname: window.location.pathname,
+      hash: window.location.hash,
+      isOverlay
+    });
     
     loadConfig();
     if (!isOverlay) {

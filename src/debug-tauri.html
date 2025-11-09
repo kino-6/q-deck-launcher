@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tauri Debug</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; }
+        .status { padding: 10px; margin: 5px 0; border-radius: 5px; }
+        .success { background: #2d5a2d; }
+        .error { background: #5a2d2d; }
+        .warning { background: #5a5a2d; }
+        button { padding: 10px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Tauri Connection Debug</h1>
+    <div id="results"></div>
+    <button onclick="runTests()">Run Tests</button>
+    <button onclick="clearResults()">Clear</button>
+
+    <script>
+        const results = document.getElementById('results');
+        
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(div);
+            console.log(message);
+        }
+        
+        function clearResults() {
+            results.innerHTML = '';
+        }
+        
+        async function runTests() {
+            clearResults();
+            log('🔧 Starting Tauri connection tests...');
+            
+            // Test 1: Basic window object
+            log(`Window object: ${typeof window}`, 'info');
+            
+            // Test 2: Tauri globals
+            const tauriGlobal = (window as any).__TAURI__;
+            const tauriInternals = (window as any).__TAURI_INTERNALS__;
+            
+            log(`__TAURI__: ${typeof tauriGlobal}`, tauriGlobal ? 'success' : 'error');
+            log(`__TAURI_INTERNALS__: ${typeof tauriInternals}`, tauriInternals ? 'success' : 'error');
+            
+            if (tauriGlobal) {
+                log(`__TAURI__ keys: ${Object.keys(tauriGlobal).join(', ')}`, 'info');
+            }
+            
+            // Test 3: Try to import Tauri modules
+            try {
+                const { invoke } = await import('@tauri-apps/api/core');
+                log(`invoke function: ${typeof invoke}`, invoke ? 'success' : 'error');
+                
+                // Test 4: Try a simple invoke
+                try {
+                    const result = await invoke('get_config');
+                    log('✅ get_config invoke successful', 'success');
+                    log(`Config type: ${typeof result}`, 'info');
+                } catch (invokeError) {
+                    log(`❌ get_config invoke failed: ${invokeError}`, 'error');
+                }
+                
+            } catch (importError) {
+                log(`❌ Failed to import Tauri API: ${importError}`, 'error');
+            }
+            
+            // Test 5: Try event listening
+            try {
+                const { listen } = await import('@tauri-apps/api/event');
+                log(`listen function: ${typeof listen}`, listen ? 'success' : 'error');
+                
+                // Test file drop events
+                try {
+                    const unlisten = await listen('tauri://file-drop', (event) => {
+                        log(`📁 File drop event received: ${JSON.stringify(event.payload)}`, 'success');
+                    });
+                    log('✅ File drop listener registered', 'success');
+                    
+                    setTimeout(() => {
+                        unlisten();
+                        log('🔧 File drop listener unregistered', 'info');
+                    }, 1000);
+                    
+                } catch (listenError) {
+                    log(`❌ Failed to set up file drop listener: ${listenError}`, 'error');
+                }
+                
+            } catch (eventError) {
+                log(`❌ Failed to import event API: ${eventError}`, 'error');
+            }
+            
+            // Test 6: Window API
+            try {
+                const { getCurrentWindow } = await import('@tauri-apps/api/window');
+                const currentWindow = getCurrentWindow();
+                log(`getCurrentWindow: ${typeof currentWindow}`, currentWindow ? 'success' : 'error');
+                
+                if (currentWindow) {
+                    log(`Window label: ${currentWindow.label}`, 'info');
+                }
+                
+            } catch (windowError) {
+                log(`❌ Failed to import window API: ${windowError}`, 'error');
+            }
+            
+            log('🔧 Tests completed');
+        }
+        
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            setTimeout(runTests, 500);
+        });
+    </script>
+</body>
+</html>

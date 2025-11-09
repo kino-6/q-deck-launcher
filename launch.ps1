@@ -8,7 +8,7 @@ param(
     [int]$MaxPortAttempts = 10
 )
 
-Write-Host "Starting Q-Deck Launcher in development mode..." -ForegroundColor Green
+Write-Host "Starting Q-Deck Launcher (Electron) in development mode..." -ForegroundColor Green
 Write-Host "Parameters:" -ForegroundColor Cyan
 Write-Host "  -Force: Terminate existing processes" -ForegroundColor Gray
 Write-Host "  -NoCleanup: Skip process cleanup" -ForegroundColor Gray
@@ -99,9 +99,9 @@ function Stop-PortProcesses {
                     try {
                         $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
                         if ($process) {
-                            # Only kill processes that are likely ours (node, cargo, or q-deck related)
+                            # Only kill processes that are likely ours (node, electron, or q-deck related)
                             $processName = $process.ProcessName.ToLower()
-                            if ($processName -match "(node|cargo|tauri|q-deck|vite)" -or $Force) {
+                            if ($processName -match "(node|electron|q-deck|vite)" -or $Force) {
                                 Write-Host "  Terminating process: $($process.ProcessName) (PID: $processId)" -ForegroundColor Yellow
                                 $process.Kill()
                                 Write-Host "  Successfully terminated" -ForegroundColor Green
@@ -132,13 +132,7 @@ if (-not (Test-Command "node")) {
     exit 1
 }
 
-# Check if Rust is installed
-if (-not (Test-Command "cargo")) {
-    Write-Host "Error: Rust is not installed or not in PATH" -ForegroundColor Red
-    Write-Host "Please install Rust from https://rustup.rs/" -ForegroundColor Yellow
-    Read-Host "Press Enter to exit"
-    exit 1
-}
+# Note: Rust is no longer required for Electron version
 
 # Check if we're in the right directory
 if (-not (Test-Path "package.json")) {
@@ -204,19 +198,29 @@ function Stop-QDeckProcesses {
         }
     }
     
-    # Clean up any locked files in target directory
-    $targetDir = "src-tauri\target"
-    if (Test-Path $targetDir) {
-        Write-Host "Cleaning up build artifacts..." -ForegroundColor Yellow
-        try {
-            # Remove any .lock files
-            Get-ChildItem -Path $targetDir -Recurse -Filter "*.lock" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-            # Remove any .tmp files
-            Get-ChildItem -Path $targetDir -Recurse -Filter "*.tmp" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+    # Force cleanup of any remaining Electron processes
+    if ($Force) {
+        Write-Host "Performing deep cleanup of Electron processes..." -ForegroundColor Yellow
+        $electronProcesses = Get-Process -ErrorAction SilentlyContinue | Where-Object {
+            $_.ProcessName -match "electron" -or
+            $_.MainWindowTitle -match "q-deck"
         }
-        catch {
-            Write-Host "Warning: Could not clean all build artifacts" -ForegroundColor Yellow
+        
+        if ($electronProcesses) {
+            $electronProcesses | ForEach-Object {
+                try {
+                    Write-Host "  Force terminating: $($_.ProcessName) (PID: $($_.Id))" -ForegroundColor Gray
+                    $_.Kill()
+                    Start-Sleep -Milliseconds 100
+                }
+                catch {
+                    Write-Host "  Could not terminate: $($_.ProcessName) (PID: $($_.Id))" -ForegroundColor Red
+                }
+            }
         }
+        
+        # Wait a moment for processes to fully terminate
+        Start-Sleep -Seconds 1
     }
 }
 
@@ -229,7 +233,6 @@ if (-not $NoCleanup) {
 Write-Host "Environment Check:" -ForegroundColor Cyan
 Write-Host "Node.js: $(node --version)" -ForegroundColor Gray
 Write-Host "npm: $(npm --version)" -ForegroundColor Gray
-Write-Host "Rust: $(cargo --version)" -ForegroundColor Gray
 Write-Host ""
 
 # Install dependencies
@@ -248,10 +251,10 @@ catch {
 }
 
 Write-Host ""
-Write-Host "Starting Tauri development server..." -ForegroundColor Green
+Write-Host "Starting Electron development server..." -ForegroundColor Green
 Write-Host "Press Ctrl+C to stop the application" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "Default hotkey: Ctrl+F12 to show overlay" -ForegroundColor Cyan
+Write-Host "Default hotkey: F11 to show overlay" -ForegroundColor Cyan
 Write-Host ""
 
 # Find available port for Vite dev server
@@ -273,16 +276,16 @@ Write-Host "  VITE_PORT = $availablePort" -ForegroundColor Gray
 Write-Host "  HMR_PORT = $($availablePort + 1)" -ForegroundColor Gray
 
 Write-Host ""
-Write-Host "Starting Tauri development server on port $availablePort..." -ForegroundColor Green
+Write-Host "Starting Electron development server on port $availablePort..." -ForegroundColor Green
 Write-Host "Press Ctrl+C to stop the application" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "Default hotkey: Ctrl+F12 to show overlay" -ForegroundColor Cyan
+Write-Host "Default hotkey: F11 to show overlay" -ForegroundColor Cyan
 Write-Host "Development server will be available at: http://localhost:$availablePort" -ForegroundColor Cyan
 Write-Host ""
 
 # Start the development server
 try {
-    npm run tauri dev
+    npm run electron:dev
 }
 catch {
     Write-Host "Error: Failed to start development server" -ForegroundColor Red

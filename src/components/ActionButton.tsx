@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { ActionButton as ActionButtonType, tauriAPI, IconInfo } from '../lib/tauri';
+import { ActionButton as ActionButtonType, tauriAPI, IconInfo } from '../lib/platform-api';
 import './ActionButton.css';
 
 interface ActionButtonProps {
@@ -181,8 +181,13 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
       }
       
       console.log('Executing action:', button.action_type, button.config);
-      // TODO: Implement actual action execution in task 5
-      await tauriAPI.executeAction(`${button.action_type}:${JSON.stringify(button.config)}`);
+      // Pass the full action configuration to the backend
+      const actionConfig = {
+        type: button.action_type,
+        label: button.label,
+        ...button.config
+      };
+      await tauriAPI.executeAction(actionConfig);
     } catch (err) {
       console.error('Failed to execute action:', err);
     }

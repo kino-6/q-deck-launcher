@@ -1,4 +1,7 @@
-import { invoke } from '@tauri-apps/api/core';
+// Platform-agnostic API (works with both Tauri and Electron)
+// This file has been migrated to use electron-adapter instead of direct Tauri calls
+// The electron-adapter provides a unified interface that works with both platforms
+import platformAPI from './electron-adapter';
 
 // Type definitions for Tauri commands
 export interface QDeckConfig {
@@ -330,70 +333,157 @@ export interface ActionResult {
   error_code?: number;
 }
 
-// Tauri API wrapper
-export const tauriAPI = {
-  // Config management
-  getConfig: (): Promise<QDeckConfig> => invoke('get_config'),
-  saveConfig: (config: QDeckConfig): Promise<void> => invoke('save_config', { config }),
-  
-  // Overlay management
-  showOverlay: (): Promise<void> => invoke('show_overlay'),
-  hideOverlay: (): Promise<void> => invoke('hide_overlay'),
-  toggleOverlay: (): Promise<void> => invoke('toggle_overlay'),
-  isOverlayVisible: (): Promise<boolean> => invoke('is_overlay_visible'),
-  updateOverlayConfig: (config: TauriWindowConfig): Promise<void> => 
-    invoke('update_overlay_config', { config }),
-  positionOverlay: (placement: string): Promise<void> => 
-    invoke('position_overlay', { placement }),
-  
-  // Enhanced multi-monitor and DPI support
-  getMonitorInfo: (): Promise<MonitorInfo[]> => invoke('get_monitor_info'),
-  getCurrentMonitor: (): Promise<MonitorInfo> => invoke('get_current_monitor'),
-  getOptimalGridLayout: (rows: number, cols: number): Promise<GridLayout> => 
-    invoke('get_optimal_grid_layout', { rows, cols }),
-  calculateGridMetrics: (config: WindowConfig, screenInfo: ScreenInfo): Promise<GridMetrics> =>
-    invoke('calculate_grid_metrics', { config, screenInfo }),
-  
-  // Icon processing
-  processIcon: (iconSpec: string, fallbackExecutable?: string): Promise<IconInfo> =>
-    invoke('process_icon', { iconSpec, fallbackExecutable }),
-  extractExecutableIcon: (exePath: string, iconId: string): Promise<IconInfo> =>
-    invoke('extract_executable_icon', { exePath, iconId }),
-  getIconCacheStats: (): Promise<CacheStats> => invoke('get_icon_cache_stats'),
-  clearIconCache: (): Promise<void> => invoke('clear_icon_cache'),
-  
-  // Action execution
-  executeAction: (actionId: string): Promise<ActionResult> => invoke('execute_action', { actionId }),
-  
-  // Logging
-  getRecentLogs: (limit: number): Promise<ActionLog[]> => invoke('get_recent_logs', { limit }),
-  
-  // Hotkey management
-  registerHotkey: (hotkeyStr: string, action: string): Promise<number> => 
-    invoke('register_hotkey', { hotkeyStr, action }),
-  unregisterHotkey: (id: number): Promise<void> => 
-    invoke('unregister_hotkey', { id }),
-  registerMultipleHotkeys: (hotkeyConfigs: HotkeyConfig[]): Promise<number[]> => 
-    invoke('register_multiple_hotkeys', { hotkeyConfigs }),
-  getRegisteredHotkeys: (): Promise<ParsedHotkey[]> => 
-    invoke('get_registered_hotkeys'),
-  isHotkeyAvailable: (hotkeyStr: string): Promise<boolean> => 
-    invoke('is_hotkey_available', { hotkeyStr }),
+// Drag and drop types
+export interface DroppedFile {
+  path: string;
+  name: string;
+  file_type: DroppedFileType;
+  size_bytes: number;
+  is_directory: boolean;
+  icon_hint?: string;
+}
 
-  // Profile and page management
-  getProfiles: (): Promise<ProfileInfo[]> => invoke('get_profiles'),
-  getCurrentProfile: (): Promise<ProfileInfo> => invoke('get_current_profile'),
-  switchToProfile: (profileIndex: number): Promise<ProfileInfo> => 
-    invoke('switch_to_profile', { profileIndex }),
-  switchToProfileByName: (profileName: string): Promise<ProfileInfo> => 
-    invoke('switch_to_profile_by_name', { profileName }),
-  getCurrentProfilePages: (): Promise<PageInfo[]> => invoke('get_current_profile_pages'),
-  getCurrentPage: (): Promise<PageInfo> => invoke('get_current_page'),
-  switchToPage: (pageIndex: number): Promise<PageInfo> => 
-    invoke('switch_to_page', { pageIndex }),
-  nextPage: (): Promise<PageInfo> => invoke('next_page'),
-  previousPage: (): Promise<PageInfo> => invoke('previous_page'),
-  getNavigationContext: (): Promise<NavigationContext> => invoke('get_navigation_context'),
+export type DroppedFileType = 
+  | 'Executable'
+  | 'Document'
+  | 'Image'
+  | 'Video'
+  | 'Audio'
+  | 'Archive'
+  | 'Script'
+  | 'Directory'
+  | 'Unknown';
+
+export interface ButtonGenerationRequest {
+  files: DroppedFile[];
+  target_position?: Position;
+  grid_rows: number;
+  grid_cols: number;
+  existing_buttons: ActionButton[];
+}
+
+export interface ButtonGenerationResult {
+  generated_buttons: ActionButton[];
+  placement_positions: Position[];
+  conflicts: Position[];
+  errors: string[];
+}
+
+export interface UndoOperation {
+  operation_id: string;
+  timestamp: string;
+  operation_type: UndoOperationType;
+  affected_positions: Position[];
+  previous_buttons: (ActionButton | null)[];
+  new_buttons: ActionButton[];
+}
+
+export type UndoOperationType = 
+  | 'AddButtons'
+  | 'RemoveButtons'
+  | 'ModifyButtons';
+// Export unified API that works with both Tauri and Electron
+// This replaces the old Tauri-specific implementation with the electron-adapter
+export const tauriAPI = {
+  // Config - now using electron-adapter
+  getConfig: () => platformAPI.getConfig(),
+  saveConfig: (config: QDeckConfig) => platformAPI.saveConfig(config),
+  
+  // Overlay - now using electron-adapter
+  showOverlay: () => platformAPI.showOverlay(),
+  hideOverlay: () => platformAPI.hideOverlay(),
+  toggleOverlay: () => platformAPI.toggleOverlay(),
+  
+  // Actions - now using electron-adapter
+  executeAction: (actionConfig: any) => platformAPI.executeAction(actionConfig),
+  
+  // Profile management - now using electron-adapter
+  getProfiles: async () => {
+    const config = await platformAPI.getConfig();
+    return config.profiles.map((profile: any, index: number) => ({
+      index,
+      name: profile.name
+    }));
+  },
+  getCurrentProfile: () => platformAPI.getCurrentProfile(),
+  getCurrentPage: () => platformAPI.getCurrentPage(),
+  getNavigationContext: () => platformAPI.getNavigationContext(),
+  getCurrentProfilePages: async () => {
+    const config = await platformAPI.getConfig();
+    const profile = config.profiles[0];
+    return profile.pages.map((page: any, index: number) => ({
+      index,
+      name: page.name
+    }));
+  },
+  switchToProfile: async (_profileIndex: number): Promise<ProfileInfo | null> => null,
+  switchToProfileByName: async (_profileName: string): Promise<ProfileInfo | null> => null,
+  switchToPage: async (_pageIndex: number): Promise<PageInfo | null> => null,
+  
+  // File drop - now using electron-adapter
+  onFileDrop: (callback: (files: string[]) => void) => platformAPI.onFileDrop(callback),
+  
+  // Platform detection - now using electron-adapter
+  getPlatform: () => platformAPI.getPlatform(),
+  
+  // Placeholder functions for features not yet implemented in Electron
+  nextPage: async (): Promise<PageInfo | null> => null,
+  previousPage: async (): Promise<PageInfo | null> => null,
+  getMonitorInfo: async () => [],
+  getCurrentMonitor: async () => ({} as MonitorInfo),
+  getOptimalGridLayout: async () => ({} as GridLayout),
+  calculateGridMetrics: async () => ({} as GridMetrics),
+  
+  // Icon processing - simplified for Electron
+  processIcon: async (iconPath: string, _fallbackPath?: string): Promise<IconInfo> => {
+    // Simple icon processing for Electron
+    // Check if it's an emoji (short string, no file extension)
+    if (iconPath.length <= 4 && !iconPath.includes('.')) {
+      return {
+        path: iconPath,
+        icon_type: 'Emoji'
+      };
+    }
+    
+    // Check if it's a URL
+    if (iconPath.startsWith('http://') || iconPath.startsWith('https://')) {
+      return {
+        path: iconPath,
+        icon_type: 'Url'
+      };
+    }
+    
+    // Assume it's a file path
+    return {
+      path: iconPath,
+      icon_type: 'File'
+    };
+  },
+  extractExecutableIcon: async (_exePath: string): Promise<IconInfo> => ({} as IconInfo),
+  getIconCacheStats: async () => ({} as CacheStats),
+  clearIconCache: async () => {},
+  
+  // Hotkey management (not fully implemented in Electron yet)
+  registerHotkey: async (_hotkey: string, _action: string): Promise<number> => 0,
+  unregisterHotkey: async (_hotkeyId: number): Promise<void> => {},
+  registerMultipleHotkeys: async (_hotkeys: HotkeyConfig[]): Promise<ParsedHotkey[]> => [],
+  getRegisteredHotkeys: async (): Promise<ParsedHotkey[]> => [],
+  isHotkeyAvailable: async (_hotkey: string): Promise<boolean> => true,
+  
+  // Drag and drop (not implemented yet)
+  analyzeDroppedFiles: async () => [],
+  generateButtonsFromFiles: async () => ({ generated_buttons: [], placement_positions: [], conflicts: [], errors: [] }),
+  addUndoOperation: async () => {},
+  getLastUndoOperation: async (): Promise<UndoOperation | null> => null,
+  undoLastOperation: async (): Promise<UndoOperation | null> => null,
+  clearUndoHistory: async () => {},
+  getUndoStats: async () => [0, 0],
+  
+  // Other functions
+  isOverlayVisible: async () => false,
+  updateOverlayConfig: async () => {},
+  positionOverlay: async () => {},
+  getRecentLogs: async () => [],
 };
 
 export default tauriAPI;

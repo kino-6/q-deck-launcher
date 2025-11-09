@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Standalone Drag Drop Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1e1e1e;
+            color: #fff;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .drop-zone {
+            width: 100%;
+            height: 200px;
+            border: 3px dashed #666;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            background: #2d2d2d;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .drop-zone.drag-over {
+            border-color: #4CAF50;
+            background: #1a4a1a;
+            transform: scale(1.02);
+        }
+        
+        .drop-zone h3 {
+            margin: 0 0 10px 0;
+            color: #fff;
+        }
+        
+        .drop-zone p {
+            margin: 5px 0;
+            color: #ccc;
+        }
+        
+        .log {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin: 20px 0;
+            border: 1px solid #333;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 10px;
+            font-size: 14px;
+        }
+        
+        .btn:hover {
+            background: #45a049;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .status.ready {
+            background: #1a4a1a;
+            color: #4CAF50;
+        }
+        
+        .status.dragging {
+            background: #4a3a1a;
+            color: #ff9800;
+        }
+        
+        .status.processing {
+            background: #1a3a4a;
+            color: #2196F3;
+        }
+        
+        .file-list {
+            background: #333;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .file-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #555;
+        }
+        
+        .file-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Standalone Drag and Drop Test</h1>
+        <p>This is a completely isolated test for HTML drag and drop functionality.</p>
+        
+        <div class="status ready" id="status">Ready - Drop files to test</div>
+        
+        <div class="drop-zone" id="dropZone">
+            <h3>📁 Drop Files Here</h3>
+            <p>Drag files from Windows Explorer</p>
+            <p>Any file type is supported</p>
+        </div>
+        
+        <div class="controls">
+            <button class="btn" onclick="clearLog()">Clear Log</button>
+            <button class="btn" onclick="testDragEvents()">Test Events</button>
+            <button class="btn" onclick="showBrowserInfo()">Browser Info</button>
+        </div>
+        
+        <div class="file-list" id="fileList" style="display: none;">
+            <h4>Dropped Files:</h4>
+            <div id="fileItems"></div>
+        </div>
+        
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const logEl = document.getElementById('log');
+        const statusEl = document.getElementById('status');
+        const fileListEl = document.getElementById('fileList');
+        const fileItemsEl = document.getElementById('fileItems');
+        
+        let eventCount = 0;
+        let droppedFiles = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            console.log(logMessage);
+            logEl.textContent += logMessage + '\n';
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function updateStatus(message, className = 'ready') {
+            statusEl.textContent = message;
+            statusEl.className = `status ${className}`;
+            log(`STATUS: ${message}`, 'status');
+        }
+        
+        function clearLog() {
+            logEl.textContent = '';
+            fileListEl.style.display = 'none';
+            droppedFiles = [];
+            eventCount = 0;
+            updateStatus('Ready - Drop files to test');
+        }
+        
+        function testDragEvents() {
+            log('Testing drag event handlers...', 'test');
+            log('dragenter handler: ' + (dropZone.ondragenter ? 'attached' : 'NOT ATTACHED'), 'test');
+            log('dragover handler: ' + (dropZone.ondragover ? 'attached' : 'NOT ATTACHED'), 'test');
+            log('drop handler: ' + (dropZone.ondrop ? 'attached' : 'NOT ATTACHED'), 'test');
+            log('Event listeners should be attached via addEventListener', 'test');
+        }
+        
+        function showBrowserInfo() {
+            log('=== BROWSER INFO ===', 'info');
+            log(`User Agent: ${navigator.userAgent}`, 'info');
+            log(`Platform: ${navigator.platform}`, 'info');
+            log(`Language: ${navigator.language}`, 'info');
+            log(`Online: ${navigator.onLine}`, 'info');
+            log(`Cookies Enabled: ${navigator.cookieEnabled}`, 'info');
+            log(`Screen: ${screen.width}x${screen.height}`, 'info');
+            log(`Window: ${window.innerWidth}x${window.innerHeight}`, 'info');
+            log(`Device Pixel Ratio: ${window.devicePixelRatio}`, 'info');
+            log('=== END BROWSER INFO ===', 'info');
+        }
+        
+        function displayFiles(files) {
+            fileItemsEl.innerHTML = '';
+            droppedFiles = Array.from(files);
+            
+            if (droppedFiles.length > 0) {
+                fileListEl.style.display = 'block';
+                droppedFiles.forEach((file, index) => {
+                    const fileDiv = document.createElement('div');
+                    fileDiv.className = 'file-item';
+                    fileDiv.innerHTML = `
+                        <strong>${file.name}</strong><br>
+                        Type: ${file.type || 'unknown'}<br>
+                        Size: ${file.size} bytes<br>
+                        Last Modified: ${new Date(file.lastModified).toLocaleString()}
+                    `;
+                    fileItemsEl.appendChild(fileDiv);
+                });
+            }
+        }
+        
+        // Initialize
+        log('Initializing standalone drag and drop test...', 'init');
+        log('Drop zone element: ' + (dropZone ? 'found' : 'NOT FOUND'), 'init');
+        
+        // Prevent default drag behaviors on document
+        document.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            log('Document dragenter prevented', 'event');
+        });
+        
+        document.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        
+        document.addEventListener('drop', (e) => {
+            e.preventDefault();
+            log('Document drop prevented (fallback)', 'event');
+        });
+        
+        // Drop zone events
+        dropZone.addEventListener('dragenter', (e) => {
+            eventCount++;
+            log(`[${eventCount}] DRAGENTER detected`, 'event');
+            log(`  Target: ${e.target.tagName}`, 'event');
+            log(`  DataTransfer types: [${Array.from(e.dataTransfer.types).join(', ')}]`, 'event');
+            log(`  DataTransfer items: ${e.dataTransfer.items.length}`, 'event');
+            log(`  DataTransfer files: ${e.dataTransfer.files.length}`, 'event');
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            dropZone.classList.add('drag-over');
+            updateStatus('Files detected - Drop to process', 'dragging');
+        });
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'copy';
+            
+            // Log every 10th dragover to avoid spam
+            if (eventCount % 10 === 0) {
+                log(`DRAGOVER (${eventCount})`, 'event');
+            }
+            eventCount++;
+        });
+        
+        dropZone.addEventListener('dragleave', (e) => {
+            log('DRAGLEAVE detected', 'event');
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Only remove drag-over if actually leaving the drop zone
+            const rect = dropZone.getBoundingClientRect();
+            if (e.clientX < rect.left || e.clientX > rect.right || 
+                e.clientY < rect.top || e.clientY > rect.bottom) {
+                dropZone.classList.remove('drag-over');
+                updateStatus('Ready - Drop files to test');
+            }
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            log('=== DROP EVENT DETECTED ===', 'success');
+            e.preventDefault();
+            e.stopPropagation();
+            
+            dropZone.classList.remove('drag-over');
+            updateStatus('Processing files...', 'processing');
+            
+            const files = e.dataTransfer.files;
+            const items = e.dataTransfer.items;
+            
+            log(`Files count: ${files.length}`, 'success');
+            log(`Items count: ${items.length}`, 'success');
+            log(`DataTransfer types: [${Array.from(e.dataTransfer.types).join(', ')}]`, 'success');
+            
+            if (files.length > 0) {
+                log('Processing files...', 'success');
+                displayFiles(files);
+                
+                Array.from(files).forEach((file, index) => {
+                    log(`File ${index + 1}: ${file.name}`, 'success');
+                    log(`  Type: ${file.type || 'unknown'}`, 'success');
+                    log(`  Size: ${file.size} bytes`, 'success');
+                    log(`  Last Modified: ${new Date(file.lastModified).toLocaleString()}`, 'success');
+                    
+                    // Try to access file path (Tauri specific)
+                    if (file.path) {
+                        log(`  Path: ${file.path}`, 'success');
+                    } else {
+                        log(`  Path: NOT AVAILABLE (normal for web browsers)`, 'info');
+                    }
+                });
+                
+                updateStatus(`Successfully processed ${files.length} file(s)`, 'ready');
+            } else {
+                log('No files found in drop event', 'error');
+                updateStatus('No files detected', 'ready');
+            }
+            
+            log('=== END DROP EVENT ===', 'success');
+        });
+        
+        // Test click to ensure element is interactive
+        dropZone.addEventListener('click', () => {
+            log('Drop zone clicked - element is interactive', 'test');
+            updateStatus('Drop zone is interactive', 'ready');
+        });
+        
+        log('All event listeners registered successfully', 'init');
+        log('Ready for drag and drop testing', 'init');
+        updateStatus('Ready - Drop files to test');
+        
+        // Show initial browser info
+        showBrowserInfo();
+    </script>
+</body>
+</html>

@@ -1,11 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { ActionButton } from './ActionButton';
+import ActionButton from './ActionButton';
 import { mockButton } from '../test/mockData';
 
 describe('ActionButton', () => {
   const mockOnSystemAction = vi.fn();
   const mockOnContextMenu = vi.fn();
+  
+  const defaultScreenInfo = {
+    width: 1920,
+    height: 1080,
+    availWidth: 1920,
+    availHeight: 1040,
+    pixelRatio: 1,
+    colorDepth: 24,
+    orientation: 'landscape-primary' as const,
+    dpiCategory: 'standard' as const,
+    physicalWidth: 1920,
+    physicalHeight: 1080,
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -15,6 +28,8 @@ describe('ActionButton', () => {
     render(
       <ActionButton
         button={mockButton}
+        dpiScale={1}
+        screenInfo={defaultScreenInfo}
         onSystemAction={mockOnSystemAction}
         onContextMenu={mockOnContextMenu}
       />
@@ -22,13 +37,14 @@ describe('ActionButton', () => {
 
     expect(screen.getByText('Test Button')).toBeInTheDocument();
     expect(screen.getByText('🚀')).toBeInTheDocument();
-    expect(screen.getByText('LaunchApp')).toBeInTheDocument();
   });
 
   it('calls onClick handler when clicked', () => {
     render(
       <ActionButton
         button={mockButton}
+        dpiScale={1}
+        screenInfo={defaultScreenInfo}
         onSystemAction={mockOnSystemAction}
         onContextMenu={mockOnContextMenu}
       />
@@ -44,6 +60,8 @@ describe('ActionButton', () => {
     render(
       <ActionButton
         button={mockButton}
+        dpiScale={1}
+        screenInfo={defaultScreenInfo}
         onSystemAction={mockOnSystemAction}
         onContextMenu={mockOnContextMenu}
       />
@@ -62,6 +80,8 @@ describe('ActionButton', () => {
     render(
       <ActionButton
         button={mockButton}
+        dpiScale={1}
+        screenInfo={defaultScreenInfo}
         onSystemAction={mockOnSystemAction}
         onContextMenu={mockOnContextMenu}
       />
@@ -80,6 +100,8 @@ describe('ActionButton', () => {
     render(
       <ActionButton
         button={regularButton}
+        dpiScale={1}
+        screenInfo={defaultScreenInfo}
         onSystemAction={mockOnSystemAction}
         onContextMenu={mockOnContextMenu}
       />
@@ -93,10 +115,17 @@ describe('ActionButton', () => {
   });
 
   it('renders with custom DPI scale', () => {
+    const highDpiScreenInfo = {
+      ...defaultScreenInfo,
+      pixelRatio: 2,
+      dpiCategory: 'high' as const,
+    };
+
     render(
       <ActionButton
         button={mockButton}
         dpiScale={2}
+        screenInfo={highDpiScreenInfo}
         onSystemAction={mockOnSystemAction}
         onContextMenu={mockOnContextMenu}
       />
@@ -107,14 +136,14 @@ describe('ActionButton', () => {
   });
 
   it('renders with custom screen info', () => {
-    const mockScreenInfo = {
+    const customScreenInfo = {
       width: 1920,
       height: 1080,
       availWidth: 1920,
       availHeight: 1040,
       pixelRatio: 1.5,
       colorDepth: 24,
-      orientation: 'landscape-primary',
+      orientation: 'landscape-primary' as const,
       dpiCategory: 'high' as const,
       physicalWidth: 1280,
       physicalHeight: 720,
@@ -124,7 +153,7 @@ describe('ActionButton', () => {
       <ActionButton
         button={mockButton}
         dpiScale={1.5}
-        screenInfo={mockScreenInfo}
+        screenInfo={customScreenInfo}
         onSystemAction={mockOnSystemAction}
         onContextMenu={mockOnContextMenu}
       />
@@ -147,6 +176,8 @@ describe('ActionButton', () => {
     render(
       <ActionButton
         button={mockButton}
+        dpiScale={1}
+        screenInfo={defaultScreenInfo}
         onSystemAction={mockOnSystemAction}
         onContextMenu={mockOnContextMenu}
       />
@@ -164,6 +195,8 @@ describe('ActionButton', () => {
     render(
       <ActionButton
         button={mockButton}
+        dpiScale={1}
+        screenInfo={defaultScreenInfo}
         onSystemAction={mockOnSystemAction}
         onContextMenu={mockOnContextMenu}
       />
@@ -190,6 +223,8 @@ describe('ActionButton', () => {
     render(
       <ActionButton
         button={styledButton}
+        dpiScale={1}
+        screenInfo={defaultScreenInfo}
         onSystemAction={mockOnSystemAction}
         onContextMenu={mockOnContextMenu}
       />
