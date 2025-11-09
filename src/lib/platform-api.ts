@@ -459,7 +459,34 @@ export const tauriAPI = {
       icon_type: 'File'
     };
   },
-  extractExecutableIcon: async (_exePath: string): Promise<IconInfo> => ({} as IconInfo),
+  extractExecutableIcon: async (exePath: string): Promise<IconInfo> => {
+    try {
+      const result = await platformAPI.extractIcon(exePath);
+      
+      if (result.success && result.iconPath) {
+        // Get the full path to the icon
+        const fullPath = await platformAPI.getIconPath(result.iconPath);
+        
+        return {
+          path: fullPath,
+          icon_type: 'Extracted',
+          extracted_from: exePath
+        };
+      } else {
+        // Return a default icon info if extraction failed
+        return {
+          path: '',
+          icon_type: 'File'
+        };
+      }
+    } catch (error) {
+      console.error('Failed to extract icon:', error);
+      return {
+        path: '',
+        icon_type: 'File'
+      };
+    }
+  },
   getIconCacheStats: async () => ({} as CacheStats),
   clearIconCache: async () => {},
   

@@ -3,22 +3,20 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { ProfileProvider, useProfile } from './ProfileContext';
 import { ProfileInfo, PageInfo, NavigationContext } from '../lib/platform-api';
 
-// Mock the tauri API
-const mockTauriAPI = {
-  getProfiles: vi.fn(),
-  getCurrentProfile: vi.fn(),
-  getCurrentProfilePages: vi.fn(),
-  getCurrentPage: vi.fn(),
-  getNavigationContext: vi.fn(),
-  switchToProfile: vi.fn(),
-  switchToProfileByName: vi.fn(),
-  switchToPage: vi.fn(),
-  nextPage: vi.fn(),
-  previousPage: vi.fn(),
-};
-
-vi.mock('../lib/tauri', () => ({
-  tauriAPI: mockTauriAPI,
+// Mock the platform API - must be defined inline due to hoisting
+vi.mock('../lib/platform-api', () => ({
+  tauriAPI: {
+    getProfiles: vi.fn(),
+    getCurrentProfile: vi.fn(),
+    getCurrentProfilePages: vi.fn(),
+    getCurrentPage: vi.fn(),
+    getNavigationContext: vi.fn(),
+    switchToProfile: vi.fn(),
+    switchToProfileByName: vi.fn(),
+    switchToPage: vi.fn(),
+    nextPage: vi.fn(),
+    previousPage: vi.fn(),
+  },
 }));
 
 // Mock the listen function from Tauri
@@ -110,14 +108,15 @@ describe('ProfileContext', () => {
     has_next_page: true,
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     
-    mockTauriAPI.getProfiles.mockResolvedValue(mockProfiles);
-    mockTauriAPI.getCurrentProfile.mockResolvedValue(mockCurrentProfile);
-    mockTauriAPI.getCurrentProfilePages.mockResolvedValue(mockPages);
-    mockTauriAPI.getCurrentPage.mockResolvedValue(mockCurrentPage);
-    mockTauriAPI.getNavigationContext.mockResolvedValue(mockNavigationContext);
+    const { tauriAPI } = await import('../lib/platform-api');
+    vi.mocked(tauriAPI.getProfiles).mockResolvedValue(mockProfiles);
+    vi.mocked(tauriAPI.getCurrentProfile).mockResolvedValue(mockCurrentProfile);
+    vi.mocked(tauriAPI.getCurrentProfilePages).mockResolvedValue(mockPages);
+    vi.mocked(tauriAPI.getCurrentPage).mockResolvedValue(mockCurrentPage);
+    vi.mocked(tauriAPI.getNavigationContext).mockResolvedValue(mockNavigationContext);
   });
 
   it('provides profile data to children', async () => {
@@ -142,6 +141,8 @@ describe('ProfileContext', () => {
   });
 
   it('handles profile switching', async () => {
+    const { tauriAPI } = await import('../lib/platform-api');
+    
     const mockNewProfile: ProfileInfo = {
       name: 'Profile 2',
       index: 1,
@@ -150,7 +151,7 @@ describe('ProfileContext', () => {
       hotkey: 'Ctrl+2',
     };
 
-    mockTauriAPI.switchToProfile.mockResolvedValue(mockNewProfile);
+    vi.mocked(tauriAPI.switchToProfile).mockResolvedValue(mockNewProfile);
 
     render(
       <ProfileProvider>
@@ -167,11 +168,13 @@ describe('ProfileContext', () => {
     switchButton.click();
 
     await waitFor(() => {
-      expect(mockTauriAPI.switchToProfile).toHaveBeenCalledWith(1);
+      expect(tauriAPI.switchToProfile).toHaveBeenCalledWith(1);
     });
   });
 
   it('handles page switching', async () => {
+    const { tauriAPI } = await import('../lib/platform-api');
+    
     const mockNewPage: PageInfo = {
       name: 'Page 2',
       index: 1,
@@ -180,7 +183,7 @@ describe('ProfileContext', () => {
       button_count: 8,
     };
 
-    mockTauriAPI.switchToPage.mockResolvedValue(mockNewPage);
+    vi.mocked(tauriAPI.switchToPage).mockResolvedValue(mockNewPage);
 
     render(
       <ProfileProvider>
@@ -197,11 +200,13 @@ describe('ProfileContext', () => {
     switchButton.click();
 
     await waitFor(() => {
-      expect(mockTauriAPI.switchToPage).toHaveBeenCalledWith(1);
+      expect(tauriAPI.switchToPage).toHaveBeenCalledWith(1);
     });
   });
 
   it('handles next page navigation', async () => {
+    const { tauriAPI } = await import('../lib/platform-api');
+    
     const mockNextPage: PageInfo = {
       name: 'Page 2',
       index: 1,
@@ -210,7 +215,7 @@ describe('ProfileContext', () => {
       button_count: 8,
     };
 
-    mockTauriAPI.nextPage.mockResolvedValue(mockNextPage);
+    vi.mocked(tauriAPI.nextPage).mockResolvedValue(mockNextPage);
 
     render(
       <ProfileProvider>
@@ -227,11 +232,13 @@ describe('ProfileContext', () => {
     nextButton.click();
 
     await waitFor(() => {
-      expect(mockTauriAPI.nextPage).toHaveBeenCalled();
+      expect(tauriAPI.nextPage).toHaveBeenCalled();
     });
   });
 
   it('handles previous page navigation', async () => {
+    const { tauriAPI } = await import('../lib/platform-api');
+    
     const mockPrevPage: PageInfo = {
       name: 'Page 1',
       index: 0,
@@ -240,7 +247,7 @@ describe('ProfileContext', () => {
       button_count: 5,
     };
 
-    mockTauriAPI.previousPage.mockResolvedValue(mockPrevPage);
+    vi.mocked(tauriAPI.previousPage).mockResolvedValue(mockPrevPage);
 
     render(
       <ProfileProvider>
@@ -257,12 +264,14 @@ describe('ProfileContext', () => {
     prevButton.click();
 
     await waitFor(() => {
-      expect(mockTauriAPI.previousPage).toHaveBeenCalled();
+      expect(tauriAPI.previousPage).toHaveBeenCalled();
     });
   });
 
   it('handles API errors gracefully', async () => {
-    mockTauriAPI.getProfiles.mockRejectedValue(new Error('API Error'));
+    const { tauriAPI } = await import('../lib/platform-api');
+    
+    vi.mocked(tauriAPI.getProfiles).mockRejectedValue(new Error('API Error'));
 
     render(
       <ProfileProvider>

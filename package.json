@@ -52,6 +52,7 @@
     "electron": "^39.1.1",
     "electron-builder": "^26.0.12",
     "jsdom": "^27.1.0",
+    "resedit": "^3.0.1",
     "rimraf": "^6.1.0",
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
@@ -70,15 +71,24 @@
       "package.json"
     ],
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "src-tauri/icons/icon.ico"
     },
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "icon": "src-tauri/icons/icon.icns"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "icon": "src-tauri/icons/128x128.png"
     }
   }

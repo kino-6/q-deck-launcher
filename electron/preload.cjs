@@ -25,6 +25,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('file-drop', (event, files) => callback(files));
   },
   
+  // Icon extraction
+  extractIcon: (exePath) => ipcRenderer.invoke('extract-icon', exePath),
+  getIconPath: (relativePath) => ipcRenderer.invoke('get-icon-path', relativePath),
+  
   // Platform info
   platform: process.platform,
   isElectron: true

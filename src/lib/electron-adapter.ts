@@ -12,6 +12,8 @@ interface ElectronAPI {
   getCurrentPage: () => Promise<any>;
   getNavigationContext: () => Promise<any>;
   onFileDrop: (callback: (files: string[]) => void) => void;
+  extractIcon: (exePath: string) => Promise<{ success: boolean; iconPath?: string; message?: string }>;
+  getIconPath: (relativePath: string) => Promise<string>;
   platform: string;
   isElectron: boolean;
 }
@@ -146,6 +148,27 @@ export const platformAPI = {
       return 'tauri';
     }
     return 'unknown';
+  },
+
+  extractIcon: async (exePath: string) => {
+    if (isElectron()) {
+      return window.electronAPI!.extractIcon(exePath);
+    } else if (isTauri()) {
+      // Tauri implementation would go here
+      // For now, return failure
+      return { success: false, message: 'Icon extraction not implemented for Tauri' };
+    }
+    throw new Error('No platform API available');
+  },
+
+  getIconPath: async (relativePath: string) => {
+    if (isElectron()) {
+      return window.electronAPI!.getIconPath(relativePath);
+    } else if (isTauri()) {
+      // Tauri implementation would go here
+      return relativePath;
+    }
+    throw new Error('No platform API available');
   }
 };
 

@@ -219,6 +219,27 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
                 }}
               />
             );
+          } else if (processedIcon.path) {
+            // For extracted icons, use file:// protocol
+            const iconSrc = processedIcon.path.startsWith('file://') 
+              ? processedIcon.path 
+              : `file://${processedIcon.path}`;
+            return (
+              <img 
+                src={iconSrc} 
+                alt={button.label}
+                className="button-icon-image"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                }}
+                onError={() => {
+                  console.warn('Failed to load extracted icon:', iconSrc);
+                  setIconError('Failed to load icon image');
+                }}
+              />
+            );
           }
           break;
         case 'Url':
@@ -250,9 +271,13 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
       
       // Check if it's a file path or URL
       if (button.icon.startsWith('http') || button.icon.includes('.')) {
+        // For file paths, use file:// protocol
+        const iconSrc = button.icon.startsWith('http') || button.icon.startsWith('file://') 
+          ? button.icon 
+          : `file://${button.icon}`;
         return (
           <img 
-            src={button.icon} 
+            src={iconSrc} 
             alt={button.label}
             className="button-icon-image"
             style={{

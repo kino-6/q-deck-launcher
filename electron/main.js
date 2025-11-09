@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, screen, shell } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain, screen, shell, nativeImage } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -16,6 +16,52 @@ let config = null;
 
 // Config file path
 const configPath = path.join(app.getPath('userData'), 'config.yaml');
+
+// Icon cache directory
+const iconCachePath = path.join(app.getPath('userData'), 'icon-cache');
+
+// Ensure icon cache directory exists
+if (!fs.existsSync(iconCachePath)) {
+  fs.mkdirSync(iconCachePath, { recursive: true });
+}
+
+// Extract icon from executable file
+async function extractIconFromExe(exePath) {
+  try {
+    console.log('Extracting icon from:', exePath);
+    
+    // Check if file exists
+    if (!fs.existsSync(exePath)) {
+      console.warn('Executable file not found:', exePath);
+      return null;
+    }
+
+    // Use Electron's nativeImage to extract icon
+    const icon = await app.getFileIcon(exePath, { size: 'large' });
+    
+    if (!icon || icon.isEmpty()) {
+      console.warn('No icon found in executable:', exePath);
+      return null;
+    }
+
+    // Generate a unique filename based on the exe path
+    const hash = Buffer.from(exePath).toString('base64').replace(/[/+=]/g, '_');
+    const iconFileName = `${hash}.png`;
+    const iconPath = path.join(iconCachePath, iconFileName);
+
+    // Save icon as PNG
+    const pngBuffer = icon.toPNG();
+    fs.writeFileSync(iconPath, pngBuffer);
+    
+    console.log('Icon extracted and saved to:', iconPath);
+    
+    // Return the relative path from userData
+    return `icon-cache/${iconFileName}`;
+  } catch (error) {
+    console.error('Failed to extract icon from executable:', error);
+    return null;
+  }
+}
 
 // Load configuration
 function loadConfig(mode = 'normal') {
@@ -454,6 +500,39 @@ ipcMain.handle('get-navigation-context', async () => {
     };
   }
   return null;
+});
+
+// Icon extraction
+ipcMain.handle('extract-icon', async (event, exePath) => {
+  console.log('IPC: extract-icon called for:', exePath);
+  
+  try {
+    const iconPath = await extractIconFromExe(exePath);
+    
+    if (iconPath) {
+      return {
+        success: true,
+        iconPath: iconPath
+      };
+    } else {
+      return {
+        success: false,
+        message: 'Failed to extract icon'
+      };
+    }
+  } catch (error) {
+    console.error('IPC: extract-icon failed:', error);
+    return {
+      success: false,
+      message: error.message
+    };
+  }
+});
+
+// Get icon cache path
+ipcMain.handle('get-icon-path', async (event, relativePath) => {
+  const fullPath = path.join(app.getPath('userData'), relativePath);
+  return fullPath;
 });
 
 console.log('Electron main process started');

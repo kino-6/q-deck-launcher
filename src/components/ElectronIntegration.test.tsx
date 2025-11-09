@@ -74,7 +74,7 @@ describe('Electron Integration Tests', () => {
       
       const button: ActionButtonType = {
         position: { row: 1, col: 1 },
-        action_type: 'system',
+        action_type: 'LaunchApp',
         label: 'Settings',
         icon: '⚙️',
         config: {},
