@@ -149,7 +149,7 @@ describe('React UI in Electron Window', () => {
     expect(screen.getByText('Configure your overlay launcher')).toBeInTheDocument();
   });
 
-  it('should render control buttons correctly', async () => {
+  it('should render all UI elements correctly', async () => {
     render(<App />);
 
     await waitFor(() => {
@@ -168,14 +168,6 @@ describe('React UI in Electron Window', () => {
     const toggleOverlayElements = screen.getAllByText('Toggle Overlay');
     expect(toggleOverlayElements.length).toBeGreaterThan(0);
     expect(toggleOverlayElements[0]).toBeInTheDocument();
-  });
-
-  it('should display configuration information', async () => {
-    render(<App />);
-
-    await waitFor(() => {
-      expect(screen.queryByText('Loading Q-Deck...')).not.toBeInTheDocument();
-    });
 
     // Verify configuration section is rendered
     expect(screen.getByText('Configuration')).toBeInTheDocument();
@@ -185,28 +177,12 @@ describe('React UI in Electron Window', () => {
     expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByText('Theme:')).toBeInTheDocument();
     expect(screen.getByText('dark')).toBeInTheDocument();
-  });
-
-  it('should display hotkey management section', async () => {
-    render(<App />);
-
-    await waitFor(() => {
-      expect(screen.queryByText('Loading Q-Deck...')).not.toBeInTheDocument();
-    });
 
     // Verify hotkey management section is rendered
     expect(screen.getByText('Hotkey Management')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('e.g., Ctrl+Alt+F1')).toBeInTheDocument();
     expect(screen.getByText('Register')).toBeInTheDocument();
     expect(screen.getByText('Check Available')).toBeInTheDocument();
-  });
-
-  it('should display default hotkeys from configuration', async () => {
-    render(<App />);
-
-    await waitFor(() => {
-      expect(screen.queryByText('Loading Q-Deck...')).not.toBeInTheDocument();
-    });
 
     // Verify default hotkeys are displayed
     expect(screen.getByText('Default Hotkeys:')).toBeInTheDocument();

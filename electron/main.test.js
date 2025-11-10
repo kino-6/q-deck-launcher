@@ -1007,7 +1007,7 @@ describe('Electron Main Process - Default Configuration', () => {
     expect(loadedConfig).toEqual(config);
   });
 
-  it('should have valid default hotkey configuration', () => {
+  it('should have valid default configuration structure', () => {
     const createDefaultConfig = () => {
       return {
         version: '1.0',
@@ -1054,123 +1054,21 @@ describe('Electron Main Process - Default Configuration', () => {
 
     const config = createDefaultConfig();
 
-    // Verify default hotkey is F11
+    // Verify default hotkey configuration
     expect(config.ui.summon.hotkeys).toContain('F11');
     expect(config.ui.summon.hotkeys.length).toBe(1);
-
-    // Verify hotkey can be registered
     const success = mockGlobalShortcut.register('F11', vi.fn());
     expect(success).toBe(true);
-  });
 
-  it('should have valid default window dimensions', () => {
-    const createDefaultConfig = () => {
-      return {
-        version: '1.0',
-        ui: {
-          summon: {
-            hotkeys: ['F11'],
-            edge_trigger: {
-              enabled: false,
-              edges: ['top'],
-              dwell_ms: 300,
-              margin_px: 5
-            }
-          },
-          window: {
-            placement: 'dropdown-top',
-            width_px: 1000,
-            height_px: 600,
-            cell_size_px: 96,
-            gap_px: 8,
-            opacity: 0.92,
-            theme: 'dark',
-            animation: {
-              enabled: true,
-              duration_ms: 150
-            }
-          }
-        },
-        profiles: [
-          {
-            name: 'Default',
-            hotkey: null,
-            pages: [
-              {
-                name: 'Main',
-                rows: 4,
-                cols: 6,
-                buttons: []
-              }
-            ]
-          }
-        ]
-      };
-    };
-
-    const config = createDefaultConfig();
-
-    // Verify window dimensions are reasonable
+    // Verify window dimensions are valid
     expect(config.ui.window.width_px).toBeGreaterThan(0);
     expect(config.ui.window.height_px).toBeGreaterThan(0);
     expect(config.ui.window.width_px).toBe(1000);
     expect(config.ui.window.height_px).toBe(600);
-
-    // Verify cell size and gap
     expect(config.ui.window.cell_size_px).toBe(96);
     expect(config.ui.window.gap_px).toBe(8);
-
-    // Verify opacity is valid (0-1 range)
     expect(config.ui.window.opacity).toBeGreaterThanOrEqual(0);
     expect(config.ui.window.opacity).toBeLessThanOrEqual(1);
-  });
-
-  it('should have valid default profile structure', () => {
-    const createDefaultConfig = () => {
-      return {
-        version: '1.0',
-        ui: {
-          summon: {
-            hotkeys: ['F11'],
-            edge_trigger: {
-              enabled: false,
-              edges: ['top'],
-              dwell_ms: 300,
-              margin_px: 5
-            }
-          },
-          window: {
-            placement: 'dropdown-top',
-            width_px: 1000,
-            height_px: 600,
-            cell_size_px: 96,
-            gap_px: 8,
-            opacity: 0.92,
-            theme: 'dark',
-            animation: {
-              enabled: true,
-              duration_ms: 150
-            }
-          }
-        },
-        profiles: [
-          {
-            name: 'Default',
-            hotkey: null,
-            pages: [
-              {
-                name: 'Main',
-                rows: 4,
-                cols: 6,
-                buttons: []
-              }
-            ]
-          }
-        ]
-      };
-    };
-
-    const config = createDefaultConfig();
 
     // Verify profile structure
     const profile = config.profiles[0];

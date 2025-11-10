@@ -5,12 +5,18 @@ import fs from 'fs';
 import yaml from 'yaml';
 import { spawn } from 'child_process';
 
+// Simple logger (only logs in development)
+const isDev = process.env.NODE_ENV === 'development';
+const log = (...args) => isDev && console.log(...args);
+const warn = (...args) => console.warn(...args);
+const error = (...args) => console.error(...args);
+
 // Get __dirname equivalent in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-console.log('📁 __dirname:', __dirname);
-console.log('📁 Preload script path:', path.join(__dirname, 'preload.cjs'));
+log('__dirname:', __dirname);
+log('Preload script path:', path.join(__dirname, 'preload.cjs'));
 
 // Keep a global reference of the window objects
 let mainWindow = null;
@@ -31,11 +37,11 @@ if (!fs.existsSync(iconCachePath)) {
 // Extract icon from executable file
 async function extractIconFromExe(exePath) {
   try {
-    console.log('Extracting icon from:', exePath);
+    log('Extracting icon from:', exePath);
     
     // Check if file exists
     if (!fs.existsSync(exePath)) {
-      console.warn('Executable file not found:', exePath);
+      warn('Executable file not found:', exePath);
       return null;
     }
 
@@ -43,7 +49,7 @@ async function extractIconFromExe(exePath) {
     const icon = await app.getFileIcon(exePath, { size: 'large' });
     
     if (!icon || icon.isEmpty()) {
-      console.warn('No icon found in executable:', exePath);
+      warn('No icon found in executable:', exePath);
       return null;
     }
 
@@ -56,12 +62,12 @@ async function extractIconFromExe(exePath) {
     const pngBuffer = icon.toPNG();
     fs.writeFileSync(iconPath, pngBuffer);
     
-    console.log('Icon extracted and saved to:', iconPath);
+    log('Icon extracted and saved to:', iconPath);
     
     // Return the relative path from userData
     return `icon-cache/${iconFileName}`;
-  } catch (error) {
-    console.error('Failed to extract icon from executable:', error);
+  } catch (err) {
+    error('Failed to extract icon from executable:', err);
     return null;
   }
 }
@@ -78,14 +84,14 @@ function loadConfig(mode = 'normal') {
     if (fs.existsSync(configPath)) {
       const fileContents = fs.readFileSync(configPath, 'utf8');
       config = yaml.parse(fileContents);
-      console.log('Configuration loaded:', config);
+      log('Configuration loaded');
     } else {
       // Create default config
       config = createDefaultConfig();
       saveConfig();
     }
   } catch (error) {
-    console.error('Failed to load config:', error);
+    error('Failed to load config:', err);
     config = createDefaultConfig();
   }
 }
@@ -95,9 +101,9 @@ function saveConfig() {
   try {
     const yamlStr = yaml.stringify(config);
     fs.writeFileSync(configPath, yamlStr, 'utf8');
-    console.log('Configuration saved');
+    log('Configuration saved');
   } catch (error) {
-    console.error('Failed to save config:', error);
+    error('Failed to save config:', err);
   }
 }
 
@@ -179,7 +185,7 @@ function createDefaultConfig() {
                 position: { row: 2, col: 1 },
                 action_type: 'system',
                 label: 'Settings',
-                icon: '⚙️',
+                icon: '⚙︁E,
                 config: {},
                 action: {
                   action_type: 'system',
@@ -211,7 +217,7 @@ function createMainWindow() {
   if (process.env.NODE_ENV === 'development') {
     const port = process.env.VITE_PORT || process.env.PORT || 1420;
     const mainURL = `http://localhost:${port}`;
-    console.log('Main window URL:', mainURL);
+    log('Main window URL:', mainURL);
     mainWindow.loadURL(mainURL);
     mainWindow.webContents.openDevTools();
   } else {
@@ -248,15 +254,15 @@ function createOverlayWindow() {
     }
   });
   
-  console.log('Overlay window created with dimensions:', config.ui.window.width_px, 'x', config.ui.window.height_px);
-  console.log('Overlay window position:', Math.floor((width - config.ui.window.width_px) / 2), ',', 50);
+  log('Overlay window created with dimensions:', config.ui.window.width_px, 'x', config.ui.window.height_px);
+  log('Overlay window position:', Math.floor((width - config.ui.window.width_px) / 2), ',', 50);
 
   // Load the overlay page
-  console.log('Loading overlay URL...');
+  log('Loading overlay URL...');
   if (process.env.NODE_ENV === 'development') {
     const port = process.env.VITE_PORT || process.env.PORT || 1420;
     const overlayURL = `http://localhost:${port}/overlay`;
-    console.log('Overlay URL:', overlayURL);
+    log('Overlay URL:', overlayURL);
     overlayWindow.loadURL(overlayURL);
     overlayWindow.webContents.openDevTools();
   } else {
@@ -266,17 +272,17 @@ function createOverlayWindow() {
   }
 
   overlayWindow.webContents.on('did-finish-load', () => {
-    console.log('Overlay page loaded successfully');
+    log('Overlay page loaded successfully');
     
     // Note: File drop handling is done at the app level via 'web-contents-created'
     // The renderer will receive file paths via IPC ('file-drop-paths' channel)
     // No need to inject code here - the React app already listens for IPC messages
     
-    console.log('✅ Overlay ready - file drop handling is active via IPC');
+    console.log('✁EOverlay ready - file drop handling is active via IPC');
   });
 
   overlayWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    console.error('Overlay page failed to load:', errorCode, errorDescription);
+    error('Overlay page failed to load:', errorCode, errorDescription);
   });
 
   // Forward console messages from renderer to main process (Terminal)
@@ -301,7 +307,7 @@ function createOverlayWindow() {
   });
 
   overlayWindow.on('closed', () => {
-    console.log('Overlay window closed');
+    log('Overlay window closed');
     overlayWindow = null;
   });
 
@@ -312,19 +318,19 @@ function createOverlayWindow() {
 
 // Show overlay
 function showOverlay() {
-  console.log('showOverlay called');
+  log('showOverlay called');
   if (!overlayWindow) {
-    console.log('Creating overlay window...');
+    log('Creating overlay window...');
     createOverlayWindow();
   }
   
   if (overlayWindow) {
-    console.log('Showing overlay window...');
+    log('Showing overlay window...');
     overlayWindow.show();
     overlayWindow.focus();
-    console.log('Overlay window shown and focused');
+    log('Overlay window shown and focused');
   } else {
-    console.error('Failed to create overlay window');
+    error('Failed to create overlay window');
   }
 }
 
@@ -415,7 +421,7 @@ app.on('web-contents-created', (event, contents) => {
 
 // App ready
 app.whenReady().then(() => {
-  console.log('App is ready');
+  log('App is ready');
   
   // Load configuration
   loadConfig();
@@ -493,7 +499,7 @@ ipcMain.handle('toggle-overlay', async () => {
 });
 
 ipcMain.handle('execute-action', async (event, actionConfig) => {
-  console.log('Executing action:', actionConfig);
+  log('Executing action:', actionConfig);
   
   try {
     if (actionConfig.type === 'LaunchApp') {
@@ -539,7 +545,7 @@ ipcMain.handle('execute-action', async (event, actionConfig) => {
       message: 'Unknown action type'
     };
   } catch (error) {
-    console.error('Action execution failed:', error);
+    error('Action execution failed:', error);
     return {
       success: false,
       message: error.message
@@ -587,7 +593,7 @@ ipcMain.handle('get-navigation-context', async () => {
 
 // Icon extraction
 ipcMain.handle('extract-icon', async (event, exePath) => {
-  console.log('IPC: extract-icon called for:', exePath);
+  log('IPC: extract-icon called for:', exePath);
   
   try {
     const iconPath = await extractIconFromExe(exePath);
@@ -604,7 +610,7 @@ ipcMain.handle('extract-icon', async (event, exePath) => {
       };
     }
   } catch (error) {
-    console.error('IPC: extract-icon failed:', error);
+    error('IPC: extract-icon failed:', error);
     return {
       success: false,
       message: error.message
@@ -618,4 +624,5 @@ ipcMain.handle('get-icon-path', async (event, relativePath) => {
   return fullPath;
 });
 
-console.log('Electron main process started');
+log('Electron main process started');
+

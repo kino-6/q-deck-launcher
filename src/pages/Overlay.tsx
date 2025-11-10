@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import Grid from '../components/Grid';
 import { useProfile } from '../contexts/ProfileContext';
 import { tauriAPI, QDeckConfig } from '../lib/platform-api';
+import { logger } from '../utils/logger';
 import './Overlay.css';
 
 function Overlay() {
@@ -60,7 +61,7 @@ function Overlay() {
       const loadedConfig = await tauriAPI.getConfig();
       setConfig(loadedConfig);
     } catch (err) {
-      console.error('Failed to load config in overlay:', err);
+      logger.error('Failed to load config in overlay:', err);
     } finally {
       setIsLoading(false);
     }
@@ -71,7 +72,7 @@ function Overlay() {
       // Use platform-specific API to hide overlay
       await tauriAPI.hideOverlay();
     } catch (err) {
-      console.error('Failed to hide overlay:', err);
+      logger.error('Failed to hide overlay:', err);
     }
   };
 
