@@ -388,25 +388,40 @@ export const Grid: React.FC<GridProps> = ({ config, currentProfile, currentPage,
         );
         
         if (buttonIndex !== -1) {
+          // Remove the button from the array
           buttons.splice(buttonIndex, 1);
+          console.log(`Button "${button.label}" removed from position (${button.position.row}, ${button.position.col})`);
           
+          // Update tempConfig if we're in config mode
           if (tempConfig) {
             setTempConfig(newConfig);
           }
           
-          if (typeof tauriAPI !== 'undefined' && typeof tauriAPI.saveConfig === 'function') {
+          // Save the configuration
+          try {
             await tauriAPI.saveConfig(newConfig);
-            console.log('Button removed and saved successfully');
+            console.log('Configuration saved successfully after button deletion');
+            
+            // Close context menu
+            closeContextMenu();
+            
+            // Reload the page to reflect changes
             setTimeout(() => window.location.reload(), 500);
-          } else {
-            console.log('Button removed (not saved - Tauri API unavailable)');
+          } catch (saveErr) {
+            console.error('Failed to save configuration after button deletion:', saveErr);
+            alert(`Failed to save configuration: ${saveErr}`);
           }
+        } else {
+          console.warn('Button not found in configuration');
         }
+      } else {
+        console.error('Invalid profile or page index');
       }
     } catch (err) {
       console.error('Failed to remove button:', err);
+      alert(`Failed to remove button: ${err}`);
     }
-  }, [tempConfig, config, currentProfileIndex, currentPageIndex]);
+  }, [tempConfig, config, currentProfileIndex, currentPageIndex, closeContextMenu]);
 
   const handleDeleteButton = useCallback(() => {
     if (contextMenu.button) {

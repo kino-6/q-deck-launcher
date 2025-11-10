@@ -12,6 +12,7 @@ interface ElectronAPI {
   getCurrentPage: () => Promise<any>;
   getNavigationContext: () => Promise<any>;
   onFileDrop: (callback: (files: string[]) => void) => void;
+  sendFilePaths: (filePaths: string[]) => Promise<{ success: boolean }>;
   extractIcon: (exePath: string) => Promise<{ success: boolean; iconPath?: string; message?: string }>;
   getIconPath: (relativePath: string) => Promise<string>;
   platform: string;
@@ -25,9 +26,35 @@ declare global {
   }
 }
 
+// Wait for electronAPI to be available (with timeout)
+const waitForElectronAPI = async (timeoutMs: number = 5000): Promise<boolean> => {
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < timeoutMs) {
+    if (window.electronAPI?.isElectron === true) {
+      console.log('✅ electronAPI is now available');
+      return true;
+    }
+    
+    // Wait 50ms before checking again
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  
+  console.error('❌ Timeout waiting for electronAPI');
+  return false;
+};
+
 // Check if running in Electron
 export const isElectron = () => {
-  return window.electronAPI?.isElectron === true;
+  const result = window.electronAPI?.isElectron === true;
+  if (!result) {
+    console.log('🔍 Electron detection failed:', {
+      hasElectronAPI: !!window.electronAPI,
+      isElectronFlag: window.electronAPI?.isElectron,
+      windowKeys: Object.keys(window).filter(k => k.includes('electron') || k.includes('API'))
+    });
+  }
+  return result;
 };
 
 // Check if running in Tauri
@@ -38,6 +65,15 @@ export const isTauri = () => {
 // Unified API that works with both Electron and Tauri
 export const platformAPI = {
   getConfig: async () => {
+    // Wait for electronAPI if not immediately available
+    if (!isElectron() && !isTauri()) {
+      console.log('⏳ Waiting for platform API to be available...');
+      const electronAvailable = await waitForElectronAPI();
+      if (!electronAvailable) {
+        throw new Error('No platform API available - timeout waiting for electronAPI');
+      }
+    }
+    
     if (isElectron()) {
       return window.electronAPI!.getConfig();
     } else if (isTauri()) {
@@ -48,6 +84,10 @@ export const platformAPI = {
   },
 
   saveConfig: async (config: any) => {
+    if (!isElectron() && !isTauri()) {
+      await waitForElectronAPI();
+    }
+    
     if (isElectron()) {
       return window.electronAPI!.saveConfig(config);
     } else if (isTauri()) {
@@ -98,6 +138,10 @@ export const platformAPI = {
   },
 
   getCurrentProfile: async () => {
+    if (!isElectron() && !isTauri()) {
+      await waitForElectronAPI();
+    }
+    
     if (isElectron()) {
       return window.electronAPI!.getCurrentProfile();
     } else if (isTauri()) {
@@ -169,6 +213,16 @@ export const platformAPI = {
       return relativePath;
     }
     throw new Error('No platform API available');
+  },
+
+  setDragState: (dragging: boolean) => {
+    if (isElectron()) {
+      // Electron implementation - could be used for overlay focus management
+      console.log('Drag state changed:', dragging);
+    } else if (isTauri()) {
+      // Tauri implementation would go here
+      console.log('Drag state changed:', dragging);
+    }
   }
 };
 

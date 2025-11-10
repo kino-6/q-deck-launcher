@@ -99,14 +99,39 @@ function Stop-PortProcesses {
                     try {
                         $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
                         if ($process) {
-                            # Only kill processes that are likely ours (node, electron, or q-deck related)
+                            # Check if this is a Q-Deck related process
                             $processName = $process.ProcessName.ToLower()
-                            if ($processName -match "(node|electron|q-deck|vite)" -or $Force) {
-                                Write-Host "  Terminating process: $($process.ProcessName) (PID: $processId)" -ForegroundColor Yellow
+                            $commandLine = ""
+                            
+                            try {
+                                $commandLine = (Get-CimInstance Win32_Process -Filter "ProcessId = $processId" -ErrorAction SilentlyContinue).CommandLine
+                            }
+                            catch {
+                                # Ignore errors getting command line
+                            }
+                            
+                            # Only kill if it's clearly a Q-Deck development process
+                            $isQDeckProcess = $false
+                            
+                            # Check if it's node/vite running Q-Deck
+                            if ($processName -match "node" -and $commandLine -match "q-deck|vite.*1420|vite.*1421|vite.*1422") {
+                                $isQDeckProcess = $true
+                            }
+                            # Check if it's explicitly named q-deck
+                            elseif ($processName -match "q-deck") {
+                                $isQDeckProcess = $true
+                            }
+                            # Check if it's vite dev server
+                            elseif ($processName -match "vite" -and $commandLine -match "q-deck") {
+                                $isQDeckProcess = $true
+                            }
+                            
+                            if ($isQDeckProcess) {
+                                Write-Host "  Terminating Q-Deck process: $($process.ProcessName) (PID: $processId)" -ForegroundColor Yellow
                                 $process.Kill()
                                 Write-Host "  Successfully terminated" -ForegroundColor Green
                             } else {
-                                Write-Host "  Skipping non-development process: $($process.ProcessName) (PID: $processId)" -ForegroundColor Gray
+                                Write-Host "  Skipping non-Q-Deck process: $($process.ProcessName) (PID: $processId)" -ForegroundColor DarkGray
                             }
                         }
                     }
@@ -179,42 +204,74 @@ function Stop-QDeckProcesses {
         Write-Host "No existing Q-Deck launcher processes found" -ForegroundColor Green
     }
     
-    # Also check for node/vite processes that might be hanging
-    $nodeProcesses = Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object {
-        $_.MainWindowTitle -match "vite|q-deck" -or 
-        $_.ProcessName -match "vite"
-    }
-    
-    if ($nodeProcesses -and $Force) {
-        Write-Host "Terminating hanging Node.js/Vite processes..." -ForegroundColor Yellow
-        $nodeProcesses | ForEach-Object {
-            try {
-                Write-Host "  Terminating Node process ID: $($_.Id)" -ForegroundColor Gray
-                $_.Kill()
-            }
-            catch {
-                Write-Host "  Could not terminate Node process ID: $($_.Id)" -ForegroundColor Red
-            }
-        }
-    }
-    
-    # Force cleanup of any remaining Electron processes
+    # Check for Q-Deck specific node/vite processes that might be hanging
     if ($Force) {
-        Write-Host "Performing deep cleanup of Electron processes..." -ForegroundColor Yellow
-        $electronProcesses = Get-Process -ErrorAction SilentlyContinue | Where-Object {
-            $_.ProcessName -match "electron" -or
-            $_.MainWindowTitle -match "q-deck"
-        }
+        Write-Host "Checking for hanging Q-Deck Node.js processes..." -ForegroundColor Yellow
+        $nodeProcesses = Get-Process -Name "node" -ErrorAction SilentlyContinue
         
-        if ($electronProcesses) {
-            $electronProcesses | ForEach-Object {
+        if ($nodeProcesses) {
+            foreach ($proc in $nodeProcesses) {
                 try {
-                    Write-Host "  Force terminating: $($_.ProcessName) (PID: $($_.Id))" -ForegroundColor Gray
-                    $_.Kill()
-                    Start-Sleep -Milliseconds 100
+                    # Get command line to verify it's a Q-Deck process
+                    $commandLine = (Get-CimInstance Win32_Process -Filter "ProcessId = $($proc.Id)" -ErrorAction SilentlyContinue).CommandLine
+                    
+                    # Only kill if it's clearly running Q-Deck related code
+                    if ($commandLine -match "q-deck|vite.*1420|vite.*1421|vite.*1422|electron.*q-deck") {
+                        Write-Host "  Terminating Q-Deck Node process (PID: $($proc.Id))" -ForegroundColor Yellow
+                        $proc.Kill()
+                    }
+                    else {
+                        Write-Host "  Skipping non-Q-Deck Node process (PID: $($proc.Id))" -ForegroundColor DarkGray
+                    }
                 }
                 catch {
-                    Write-Host "  Could not terminate: $($_.ProcessName) (PID: $($_.Id))" -ForegroundColor Red
+                    # Ignore errors
+                }
+            }
+        }
+    }
+    
+    # Force cleanup of Q-Deck specific Electron processes only
+    if ($Force) {
+        Write-Host "Performing cleanup of Q-Deck Electron processes..." -ForegroundColor Yellow
+        
+        # Get all Electron processes
+        $electronProcesses = Get-Process -Name "electron" -ErrorAction SilentlyContinue
+        
+        if ($electronProcesses) {
+            foreach ($proc in $electronProcesses) {
+                try {
+                    # Check if this Electron process is related to Q-Deck
+                    # Method 1: Check command line arguments
+                    $commandLine = (Get-CimInstance Win32_Process -Filter "ProcessId = $($proc.Id)" -ErrorAction SilentlyContinue).CommandLine
+                    
+                    # Method 2: Check working directory
+                    $workingDir = $proc.Path
+                    
+                    # Only kill if it's clearly a Q-Deck process
+                    $isQDeckProcess = $false
+                    
+                    if ($commandLine -match "q-deck|Q-Deck") {
+                        $isQDeckProcess = $true
+                    }
+                    elseif ($proc.MainWindowTitle -match "q-deck|Q-Deck") {
+                        $isQDeckProcess = $true
+                    }
+                    elseif ($workingDir -and $workingDir -match "q-deck") {
+                        $isQDeckProcess = $true
+                    }
+                    
+                    if ($isQDeckProcess) {
+                        Write-Host "  Terminating Q-Deck Electron process: $($proc.ProcessName) (PID: $($proc.Id))" -ForegroundColor Gray
+                        $proc.Kill()
+                        Start-Sleep -Milliseconds 100
+                    }
+                    else {
+                        Write-Host "  Skipping non-Q-Deck Electron process (PID: $($proc.Id))" -ForegroundColor DarkGray
+                    }
+                }
+                catch {
+                    Write-Host "  Could not process Electron PID: $($proc.Id)" -ForegroundColor Red
                 }
             }
         }

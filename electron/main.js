@@ -9,6 +9,9 @@ import { spawn } from 'child_process';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+console.log('📁 __dirname:', __dirname);
+console.log('📁 Preload script path:', path.join(__dirname, 'preload.cjs'));
+
 // Keep a global reference of the window objects
 let mainWindow = null;
 let overlayWindow = null;
@@ -206,7 +209,10 @@ function createMainWindow() {
 
   // Load the app
   if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:1420');
+    const port = process.env.VITE_PORT || process.env.PORT || 1420;
+    const mainURL = `http://localhost:${port}`;
+    console.log('Main window URL:', mainURL);
+    mainWindow.loadURL(mainURL);
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -236,22 +242,20 @@ function createOverlayWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.cjs')
+      preload: path.join(__dirname, 'preload.cjs'),
+      webSecurity: true,
+      enableRemoteModule: false
     }
   });
   
   console.log('Overlay window created with dimensions:', config.ui.window.width_px, 'x', config.ui.window.height_px);
   console.log('Overlay window position:', Math.floor((width - config.ui.window.width_px) / 2), ',', 50);
 
-  // Enable drag and drop
-  overlayWindow.webContents.on('will-navigate', (event) => {
-    event.preventDefault();
-  });
-
   // Load the overlay page
   console.log('Loading overlay URL...');
   if (process.env.NODE_ENV === 'development') {
-    const overlayURL = 'http://localhost:1420/overlay';
+    const port = process.env.VITE_PORT || process.env.PORT || 1420;
+    const overlayURL = `http://localhost:${port}/overlay`;
     console.log('Overlay URL:', overlayURL);
     overlayWindow.loadURL(overlayURL);
     overlayWindow.webContents.openDevTools();
@@ -263,10 +267,37 @@ function createOverlayWindow() {
 
   overlayWindow.webContents.on('did-finish-load', () => {
     console.log('Overlay page loaded successfully');
+    
+    // Note: File drop handling is done at the app level via 'web-contents-created'
+    // The renderer will receive file paths via IPC ('file-drop-paths' channel)
+    // No need to inject code here - the React app already listens for IPC messages
+    
+    console.log('✅ Overlay ready - file drop handling is active via IPC');
   });
 
   overlayWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
     console.error('Overlay page failed to load:', errorCode, errorDescription);
+  });
+
+  // Forward console messages from renderer to main process (Terminal)
+  // Note: This helps debug drag and drop issues by showing renderer logs in terminal
+  overlayWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    const levelMap = {
+      0: 'LOG',
+      1: 'WARN',
+      2: 'ERROR',
+      3: 'DEBUG'
+    };
+    const levelName = levelMap[level] || 'LOG';
+    
+    // Filter out some noisy messages
+    if (message.includes('DevTools') || 
+        message.includes('Security Warning') || 
+        message.includes('Autofill')) {
+      return;
+    }
+    
+    console.log(`[RENDERER ${levelName}] ${message}`);
   });
 
   overlayWindow.on('closed', () => {
@@ -274,12 +305,9 @@ function createOverlayWindow() {
     overlayWindow = null;
   });
 
-  overlayWindow.on('blur', () => {
-    // Hide overlay when it loses focus
-    if (overlayWindow && overlayWindow.isVisible()) {
-      overlayWindow.hide();
-    }
-  });
+  // Note: Removed blur event auto-close behavior
+  // Overlay now stays visible until explicitly closed with F11 hotkey
+  // This allows drag and drop from external applications without the overlay closing
 }
 
 // Show overlay
@@ -341,6 +369,50 @@ function registerHotkeys() {
   // This allows modals to handle Escape key first
 }
 
+// Enable file path access for drag and drop
+// This intercepts file drops at the webContents level and sends full paths via IPC
+app.on('web-contents-created', (event, contents) => {
+  console.log('🔧 Setting up file drop interception for webContents');
+  
+  // Prevent default file navigation
+  contents.on('will-navigate', (event, navigationUrl) => {
+    console.log('🔍 will-navigate event:', navigationUrl);
+    
+    // Check if this is a file drop (file:// URL)
+    if (navigationUrl.startsWith('file://')) {
+      event.preventDefault();
+      const filePath = decodeURIComponent(navigationUrl.replace(/^file:\/\/\//, ''));
+      console.log('📁 File dropped (intercepted via will-navigate):', filePath);
+      
+      // Send file path to renderer via IPC
+      contents.send('file-drop-paths', [filePath]);
+    }
+  });
+  
+  // Intercept window.open calls (alternative file drop method)
+  contents.setWindowOpenHandler(({ url }) => {
+    console.log('🔍 setWindowOpenHandler:', url);
+    
+    if (url.startsWith('file://')) {
+      const filePath = decodeURIComponent(url.replace(/^file:\/\/\//, ''));
+      console.log('📁 File dropped (intercepted via setWindowOpenHandler):', filePath);
+      
+      // Send file path to renderer via IPC
+      contents.send('file-drop-paths', [filePath]);
+      
+      return { action: 'deny' };
+    }
+    
+    return { action: 'allow' };
+  });
+  
+  // Enable file protocol for this webContents
+  contents.session.protocol.registerFileProtocol('file', (request, callback) => {
+    const url = request.url.substr(7);
+    callback({ path: decodeURIComponent(url) });
+  });
+});
+
 // App ready
 app.whenReady().then(() => {
   console.log('App is ready');
@@ -382,6 +454,17 @@ app.on('will-quit', () => {
 // IPC Handlers
 ipcMain.handle('get-config', async () => {
   return config;
+});
+
+// Receive file paths from injected code and broadcast to renderer
+ipcMain.handle('send-file-paths', async (event, filePaths) => {
+  console.log('📥 Received file paths from injected code:', filePaths);
+  
+  // Send the file paths to the renderer via the file-drop-paths channel
+  // This will be picked up by the onFileDrop listener in the React app
+  event.sender.send('file-drop-paths', filePaths);
+  
+  return { success: true };
 });
 
 ipcMain.handle('save-config', async (event, newConfig) => {

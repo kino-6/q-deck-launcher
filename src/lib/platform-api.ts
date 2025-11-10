@@ -511,6 +511,9 @@ export const tauriAPI = {
   updateOverlayConfig: async () => {},
   positionOverlay: async () => {},
   getRecentLogs: async () => [],
+  
+  // Drag state management for overlay focus control
+  setDragState: (dragging: boolean) => platformAPI.setDragState(dragging),
 };
 
 export default tauriAPI;

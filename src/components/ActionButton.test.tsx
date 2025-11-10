@@ -41,9 +41,9 @@ describe('ActionButton', () => {
     vi.mocked(tauriAPI.processIcon).mockResolvedValue({
       path: '🚀',
       icon_type: 'Emoji',
-      size: null,
-      data_url: null,
-      extracted_from: null,
+      size: undefined,
+      data_url: undefined,
+      extracted_from: undefined,
     });
   });
 
@@ -256,5 +256,122 @@ describe('ActionButton', () => {
     expect(button).toBeInTheDocument();
     // Note: Testing exact styles is complex with CSS-in-JS, 
     // but we can verify the component renders without errors
+  });
+
+  it('uses default icon when icon extraction fails', async () => {
+    const { tauriAPI } = await import('../lib/platform-api');
+    
+    // Mock processIcon to return null (extraction failed)
+    vi.mocked(tauriAPI.processIcon).mockResolvedValueOnce(null as any);
+
+    const launchAppButton = {
+      position: { row: 1, col: 1 },
+      action_type: 'LaunchApp' as const,
+      label: 'Test App',
+      icon: undefined, // No icon provided
+      config: { path: 'C:\\test.exe' },
+      style: undefined,
+      action: undefined,
+    };
+
+    render(
+      <ActionButton
+        button={launchAppButton}
+        dpiScale={1}
+        screenInfo={defaultScreenInfo}
+        onSystemAction={mockOnSystemAction}
+        onContextMenu={mockOnContextMenu}
+      />
+    );
+
+    // Should render with default LaunchApp icon (🚀)
+    await waitFor(() => {
+      expect(screen.getByText('🚀')).toBeInTheDocument();
+    });
+  });
+
+  it('uses default icon for different action types when extraction fails', async () => {
+    const { tauriAPI } = await import('../lib/platform-api');
+    
+    // Mock processIcon to return null
+    vi.mocked(tauriAPI.processIcon).mockResolvedValue(null as any);
+
+    const testCases = [
+      { action_type: 'LaunchApp' as const, expectedIcon: '🚀' },
+      { action_type: 'Open' as const, expectedIcon: '📂' },
+      { action_type: 'Terminal' as const, expectedIcon: '💻' },
+      { action_type: 'SendKeys' as const, expectedIcon: '⌨️' },
+      { action_type: 'PowerShell' as const, expectedIcon: '🔧' },
+      { action_type: 'Folder' as const, expectedIcon: '📁' },
+      { action_type: 'MultiAction' as const, expectedIcon: '⚡' },
+    ];
+
+    for (const testCase of testCases) {
+      const button = {
+        position: { row: 1, col: 1 },
+        action_type: testCase.action_type,
+        label: `Test ${testCase.action_type}`,
+        icon: undefined,
+        config: {},
+        style: undefined,
+        action: undefined,
+      };
+
+      const { unmount } = render(
+        <ActionButton
+          button={button}
+          dpiScale={1}
+          screenInfo={defaultScreenInfo}
+          onSystemAction={mockOnSystemAction}
+          onContextMenu={mockOnContextMenu}
+        />
+      );
+
+      // Should render with default icon for the action type
+      await waitFor(() => {
+        expect(screen.getByText(testCase.expectedIcon)).toBeInTheDocument();
+      });
+
+      unmount();
+    }
+  });
+
+  it('uses default icon when icon path is invalid', async () => {
+    const { tauriAPI } = await import('../lib/platform-api');
+    
+    // Mock processIcon to fail
+    vi.mocked(tauriAPI.processIcon).mockRejectedValueOnce(new Error('Invalid icon path'));
+
+    const buttonWithInvalidIcon = {
+      position: { row: 1, col: 1 },
+      action_type: 'Open' as const,
+      label: 'Test File',
+      icon: 'invalid/path/to/icon.png',
+      config: { target: 'C:\\test.txt' },
+      style: undefined,
+      action: undefined,
+    };
+
+    render(
+      <ActionButton
+        button={buttonWithInvalidIcon}
+        dpiScale={1}
+        screenInfo={defaultScreenInfo}
+        onSystemAction={mockOnSystemAction}
+        onContextMenu={mockOnContextMenu}
+      />
+    );
+
+    // Wait for the image to be rendered
+    const img = await waitFor(() => screen.getByAltText('Test File'));
+    expect(img).toBeInTheDocument();
+
+    // Simulate image load error
+    fireEvent.error(img);
+
+    // Should fall back to default Open icon (📂) after error
+    await waitFor(() => {
+      expect(screen.getByText('📂')).toBeInTheDocument();
+    });
   });
 });

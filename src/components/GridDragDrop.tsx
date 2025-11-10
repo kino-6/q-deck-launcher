@@ -26,6 +26,7 @@ export const GridDragDrop: React.FC<GridDragDropProps> = ({
   currentPageIndex,
   children,
 }) => {
+  console.log('🚀🚀🚀 GridDragDrop component mounted/rendered');
   const { dragState, setDragging, setDragOverPosition, setProcessing, resetDragState } = useDragDrop();
   const lastMousePositionRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -289,7 +290,7 @@ export const GridDragDrop: React.FC<GridDragDropProps> = ({
 
   // HTML Drag and drop handlers (for visual feedback only)
   const handleDragEnter = useCallback((event: React.DragEvent) => {
-    console.log('🎯 HTML dragEnter event fired');
+    console.log('🎯🎯🎯 HTML dragEnter event fired - THIS SHOULD APPEAR WHEN DRAGGING');
     event.preventDefault();
     event.stopPropagation();
     
@@ -312,7 +313,9 @@ export const GridDragDrop: React.FC<GridDragDropProps> = ({
     const x = event.clientX;
     const y = event.clientY;
     
+    // Check if mouse has actually left the grid area
     if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      console.log('🚪 Drag left grid area - resetting drag state');
       setDragging(false);
       setDragOverPosition(null);
       lastMousePositionRef.current = null;
@@ -320,6 +323,7 @@ export const GridDragDrop: React.FC<GridDragDropProps> = ({
   }, [setDragging, setDragOverPosition]);
 
   const handleDragOver = useCallback((event: React.DragEvent) => {
+    console.log('🔄 dragOver event');
     event.preventDefault();
     event.stopPropagation();
     
@@ -351,65 +355,57 @@ export const GridDragDrop: React.FC<GridDragDropProps> = ({
   }, [calculateDropPosition, setDragOverPosition]);
 
   const handleDrop = useCallback(async (event: React.DragEvent) => {
+    console.log('📥📥📥 HTML drop event - DROP DETECTED');
     event.preventDefault();
     event.stopPropagation();
     
     console.log('📥 HTML drop event');
     
-    // For Electron, handle the drop directly
+    // For Electron, extract file paths using the preload script API
     if (isElectron()) {
-      console.log('🔧 Electron drop handler');
+      console.log('🔧 Electron drop - extracting file paths via preload API (Electron 28)');
       
       const files = Array.from(event.dataTransfer.files);
-      if (files.length === 0) {
-        console.warn('⚠️ No files in drop event');
-        resetDragState();
-        return;
-      }
+      console.log('📁 Files in drop event:', files.length);
       
-      // Get full file paths from the dropped files
-      // In Electron, the File object has a 'path' property that contains the full file path
-      const filePaths = files.map(file => {
-        const electronFile = file as File & { path?: string };
-        const fullPath = electronFile.path;
+      if (files.length > 0 && window.electronAPI && window.electronAPI.getFilePathsFromFiles) {
+        // Use the preload script API to get file paths (synchronous in Electron 28)
+        const filePaths = window.electronAPI.getFilePathsFromFiles(files);
         
-        if (!fullPath) {
-          console.warn('⚠️ File path not available for:', file.name);
-          return file.name;
+        if (filePaths && filePaths.length > 0) {
+          console.log('✅ Extracted file paths via preload API (Electron 28):', filePaths);
+          // Handle the file drop directly
+          handleElectronFileDrop(filePaths);
+        } else {
+          console.error('❌ No file paths could be extracted via preload API');
         }
-        
-        console.log('✅ Full file path extracted:', fullPath);
-        return fullPath;
-      });
-      
-      console.log('📁 All dropped file paths:', filePaths);
-      
-      // Verify all paths are full paths (contain : or start with /)
-      const allFullPaths = filePaths.every(path => 
-        path.includes(':') || path.startsWith('/')
-      );
-      
-      if (!allFullPaths) {
-        console.warn('⚠️ Some paths may not be full paths:', filePaths);
       } else {
-        console.log('✅ All paths are full paths');
+        console.error('❌ getFilePathsFromFiles API not available or no files');
       }
-      
-      // Handle the file drop
-      await handleElectronFileDrop(filePaths);
     } else {
       // For Tauri, the drop is handled by Tauri event listeners
       console.log('📥 Tauri will handle the drop');
     }
-  }, [handleElectronFileDrop, resetDragState]);
+  }, [handleElectronFileDrop]);
 
-  // Setup Tauri file drop listeners (only for Tauri, not Electron)
+  // Setup file drop listeners for both Electron and Tauri
   useEffect(() => {
     console.log('🚀 GridDragDrop component mounted');
     
-    // Skip Tauri listeners if running in Electron
+    // Setup Electron file drop listener (from main process)
     if (isElectron()) {
-      console.log('🔧 Running in Electron - using HTML5 drag & drop');
+      console.log('🔧 Running in Electron - setting up IPC file drop listener');
+      
+      // Use window.electronAPI directly instead of importing
+      if (window.electronAPI && window.electronAPI.onFileDrop) {
+        window.electronAPI.onFileDrop((filePaths: string[]) => {
+          console.log('📥 Received file paths from Electron main process:', filePaths);
+          handleElectronFileDrop(filePaths);
+        });
+      } else {
+        console.warn('⚠️ electronAPI.onFileDrop not available');
+      }
+      
       return;
     }
     
@@ -461,7 +457,7 @@ export const GridDragDrop: React.FC<GridDragDropProps> = ({
       if (unlistenFileDropHover) unlistenFileDropHover();
       if (unlistenFileDropCancelled) unlistenFileDropCancelled();
     };
-  }, [handleTauriFileDrop, setDragging, resetDragState]);
+  }, [handleElectronFileDrop, handleTauriFileDrop, setDragging, resetDragState]);
 
   return (
     <>

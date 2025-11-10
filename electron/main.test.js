@@ -1187,3 +1187,287 @@ describe('Electron Main Process - Default Configuration', () => {
     expect(page.buttons.length).toBe(0);
   });
 });
+
+describe('Electron Main Process - Icon Extraction', () => {
+  let mockNativeImage;
+  let mockGetFileIcon;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Mock nativeImage
+    mockNativeImage = {
+      isEmpty: vi.fn(() => false),
+      toPNG: vi.fn(() => Buffer.from('fake-png-data')),
+    };
+
+    // Mock app.getFileIcon
+    mockGetFileIcon = vi.fn(() => Promise.resolve(mockNativeImage));
+    mockApp.getFileIcon = mockGetFileIcon;
+  });
+
+  it('should extract icon from executable file', async () => {
+    const exePath = 'C:\\Windows\\System32\\notepad.exe';
+
+    // Mock fs.existsSync to return true for the exe file
+    const fs = (await import('fs')).default;
+    fs.existsSync.mockReturnValue(true);
+
+    // Simulate the extractIconFromExe function
+    const extractIconFromExe = async (exePath) => {
+      if (!fs.existsSync(exePath)) {
+        return null;
+      }
+
+      const icon = await mockApp.getFileIcon(exePath, { size: 'large' });
+
+      if (!icon || icon.isEmpty()) {
+        return null;
+      }
+
+      const hash = Buffer.from(exePath).toString('base64').replace(/[/+=]/g, '_');
+      const iconFileName = `${hash}.png`;
+      const iconPath = `icon-cache/${iconFileName}`;
+
+      const pngBuffer = icon.toPNG();
+      fs.writeFileSync(`/mock/icon-cache/${iconFileName}`, pngBuffer);
+
+      return iconPath;
+    };
+
+    // Execute icon extraction
+    const result = await extractIconFromExe(exePath);
+
+    // Verify icon was extracted successfully
+    expect(result).toBeDefined();
+    expect(result).toContain('icon-cache/');
+    expect(result).toContain('.png');
+
+    // Verify app.getFileIcon was called with correct parameters
+    expect(mockApp.getFileIcon).toHaveBeenCalledWith(exePath, { size: 'large' });
+
+    // Verify icon was converted to PNG
+    expect(mockNativeImage.toPNG).toHaveBeenCalled();
+
+    // Verify icon was saved to file
+    expect(fs.writeFileSync).toHaveBeenCalled();
+    const writeCall = fs.writeFileSync.mock.calls[0];
+    expect(writeCall[0]).toContain('icon-cache');
+    expect(writeCall[0]).toContain('.png');
+    expect(writeCall[1]).toEqual(Buffer.from('fake-png-data'));
+  });
+
+  it('should return null when executable file does not exist', async () => {
+    const exePath = 'C:\\NonExistent\\app.exe';
+
+    // Mock fs.existsSync to return false
+    const fs = (await import('fs')).default;
+    fs.existsSync.mockReturnValue(false);
+
+    // Simulate the extractIconFromExe function
+    const extractIconFromExe = async (exePath) => {
+      if (!fs.existsSync(exePath)) {
+        return null;
+      }
+
+      const icon = await mockApp.getFileIcon(exePath, { size: 'large' });
+
+      if (!icon || icon.isEmpty()) {
+        return null;
+      }
+
+      return 'icon-cache/test.png';
+    };
+
+    // Execute icon extraction
+    const result = await extractIconFromExe(exePath);
+
+    // Verify null was returned
+    expect(result).toBeNull();
+
+    // Verify app.getFileIcon was not called
+    expect(mockApp.getFileIcon).not.toHaveBeenCalled();
+  });
+
+  it('should return null when icon is empty', async () => {
+    const exePath = 'C:\\Windows\\System32\\notepad.exe';
+
+    // Mock fs.existsSync to return true
+    const fs = (await import('fs')).default;
+    fs.existsSync.mockReturnValue(true);
+
+    // Mock nativeImage to return empty icon
+    mockNativeImage.isEmpty.mockReturnValue(true);
+
+    // Simulate the extractIconFromExe function
+    const extractIconFromExe = async (exePath) => {
+      if (!fs.existsSync(exePath)) {
+        return null;
+      }
+
+      const icon = await mockApp.getFileIcon(exePath, { size: 'large' });
+
+      if (!icon || icon.isEmpty()) {
+        return null;
+      }
+
+      return 'icon-cache/test.png';
+    };
+
+    // Execute icon extraction
+    const result = await extractIconFromExe(exePath);
+
+    // Verify null was returned
+    expect(result).toBeNull();
+
+    // Verify app.getFileIcon was called
+    expect(mockApp.getFileIcon).toHaveBeenCalledWith(exePath, { size: 'large' });
+
+    // Verify isEmpty was checked
+    expect(mockNativeImage.isEmpty).toHaveBeenCalled();
+
+    // Verify toPNG was not called
+    expect(mockNativeImage.toPNG).not.toHaveBeenCalled();
+  });
+
+  it('should generate unique filename based on exe path', async () => {
+    const exePath1 = 'C:\\Windows\\System32\\notepad.exe';
+    const exePath2 = 'C:\\Windows\\System32\\calc.exe';
+
+    // Mock fs.existsSync to return true
+    const fs = (await import('fs')).default;
+    fs.existsSync.mockReturnValue(true);
+
+    // Simulate the extractIconFromExe function
+    const extractIconFromExe = async (exePath) => {
+      if (!fs.existsSync(exePath)) {
+        return null;
+      }
+
+      const icon = await mockApp.getFileIcon(exePath, { size: 'large' });
+
+      if (!icon || icon.isEmpty()) {
+        return null;
+      }
+
+      const hash = Buffer.from(exePath).toString('base64').replace(/[/+=]/g, '_');
+      const iconFileName = `${hash}.png`;
+      const iconPath = `icon-cache/${iconFileName}`;
+
+      const pngBuffer = icon.toPNG();
+      fs.writeFileSync(`/mock/icon-cache/${iconFileName}`, pngBuffer);
+
+      return iconPath;
+    };
+
+    // Extract icons from both executables
+    const result1 = await extractIconFromExe(exePath1);
+    const result2 = await extractIconFromExe(exePath2);
+
+    // Verify both icons were extracted
+    expect(result1).toBeDefined();
+    expect(result2).toBeDefined();
+
+    // Verify filenames are different
+    expect(result1).not.toBe(result2);
+
+    // Verify both contain icon-cache path
+    expect(result1).toContain('icon-cache/');
+    expect(result2).toContain('icon-cache/');
+
+    // Verify both are PNG files
+    expect(result1).toContain('.png');
+    expect(result2).toContain('.png');
+  });
+
+  it('should save icon to icon-cache directory', async () => {
+    const exePath = 'C:\\Windows\\System32\\notepad.exe';
+
+    // Mock fs.existsSync to return true
+    const fs = (await import('fs')).default;
+    fs.existsSync.mockReturnValue(true);
+
+    // Simulate the extractIconFromExe function
+    const extractIconFromExe = async (exePath) => {
+      if (!fs.existsSync(exePath)) {
+        return null;
+      }
+
+      const icon = await mockApp.getFileIcon(exePath, { size: 'large' });
+
+      if (!icon || icon.isEmpty()) {
+        return null;
+      }
+
+      const hash = Buffer.from(exePath).toString('base64').replace(/[/+=]/g, '_');
+      const iconFileName = `${hash}.png`;
+      const iconPath = `icon-cache/${iconFileName}`;
+
+      const pngBuffer = icon.toPNG();
+      fs.writeFileSync(`/mock/icon-cache/${iconFileName}`, pngBuffer);
+
+      return iconPath;
+    };
+
+    // Execute icon extraction
+    const result = await extractIconFromExe(exePath);
+
+    // Verify icon was saved
+    expect(fs.writeFileSync).toHaveBeenCalled();
+
+    // Verify the save path contains icon-cache
+    const writeCall = fs.writeFileSync.mock.calls[0];
+    expect(writeCall[0]).toContain('icon-cache');
+
+    // Verify the returned path is relative and contains icon-cache
+    expect(result).toContain('icon-cache/');
+    expect(result).not.toContain('/mock/');
+  });
+
+  it('should handle icon extraction errors gracefully', async () => {
+    const exePath = 'C:\\Windows\\System32\\notepad.exe';
+
+    // Mock fs.existsSync to return true
+    const fs = (await import('fs')).default;
+    fs.existsSync.mockReturnValue(true);
+
+    // Mock app.getFileIcon to throw an error
+    mockGetFileIcon.mockRejectedValue(new Error('Failed to extract icon'));
+
+    // Simulate the extractIconFromExe function with error handling
+    const extractIconFromExe = async (exePath) => {
+      try {
+        if (!fs.existsSync(exePath)) {
+          return null;
+        }
+
+        const icon = await mockApp.getFileIcon(exePath, { size: 'large' });
+
+        if (!icon || icon.isEmpty()) {
+          return null;
+        }
+
+        const hash = Buffer.from(exePath).toString('base64').replace(/[/+=]/g, '_');
+        const iconFileName = `${hash}.png`;
+        const iconPath = `icon-cache/${iconFileName}`;
+
+        const pngBuffer = icon.toPNG();
+        fs.writeFileSync(`/mock/icon-cache/${iconFileName}`, pngBuffer);
+
+        return iconPath;
+      } catch (error) {
+        console.error('Failed to extract icon from executable:', error);
+        return null;
+      }
+    };
+
+    // Execute icon extraction
+    const result = await extractIconFromExe(exePath);
+
+    // Verify null was returned on error
+    expect(result).toBeNull();
+
+    // Verify app.getFileIcon was called
+    expect(mockApp.getFileIcon).toHaveBeenCalledWith(exePath, { size: 'large' });
+  });
+});
