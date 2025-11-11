@@ -555,45 +555,113 @@
   color: rgba(255, 255, 255, 1);
 }
 
-/* High DPI Support */
-@media (-webkit-min-device-pixel-ratio: 1.5), (min-resolution: 144dpi) {
+/* High DPI Support - Enhanced for 125%, 150%, 200% scaling */
+
+/* 125% DPI (1.25x) - Common on 1080p displays */
+@media (-webkit-min-device-pixel-ratio: 1.25), (min-resolution: 120dpi) {
   .grid {
-    border-width: 0.75px;
+    border-width: 0.8px;
+    /* Slightly increase padding for better spacing */
+    padding: calc(1rem * 1.05);
   }
   
   .grid-cell.empty {
-    border-width: 0.75px;
+    border-width: 0.8px;
+  }
+  
+  .grid-cell {
+    border-radius: calc(8px * 1.05);
   }
 }
 
+/* 150% DPI (1.5x) - Common on high-res laptops */
+@media (-webkit-min-device-pixel-ratio: 1.5), (min-resolution: 144dpi) {
+  .grid {
+    border-width: 0.67px;
+    padding: calc(1rem * 1.1);
+    /* Enhance shadow for better depth perception */
+    box-shadow: 
+      0 24px 48px rgba(0, 0, 0, 0.45),
+      0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
+  
+  .grid-cell.empty {
+    border-width: 0.67px;
+  }
+  
+  .grid-cell {
+    border-radius: calc(8px * 1.1);
+  }
+  
+  /* Improve text rendering on high DPI */
+  .grid {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* 200% DPI (2x) - Retina and 4K displays */
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
   .grid {
     border-width: 0.5px;
+    padding: calc(1rem * 1.15);
+    box-shadow: 
+      0 28px 56px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.07);
   }
   
   .grid-cell.empty {
     border-width: 0.5px;
   }
+  
+  .grid-cell {
+    border-radius: calc(8px * 1.15);
+  }
+  
+  /* Optimize rendering for retina displays */
+  .grid {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  
+  /* Sharper icons and images */
+  .grid img,
+  .grid svg {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
 }
 
+/* 300% DPI (3x) - Ultra high-res displays */
 @media (-webkit-min-device-pixel-ratio: 3), (min-resolution: 288dpi) {
   .grid {
     border-width: 0.33px;
+    padding: calc(1rem * 1.2);
   }
   
   .grid-cell.empty {
     border-width: 0.33px;
   }
+  
+  .grid-cell {
+    border-radius: calc(8px * 1.2);
+  }
 }
 
-/* Ultra High DPI (4K+ displays) */
+/* Ultra High DPI (4K+ displays at 400% scaling) */
 @media (-webkit-min-device-pixel-ratio: 4), (min-resolution: 384dpi) {
   .grid {
     border-width: 0.25px;
+    padding: calc(1rem * 1.25);
   }
   
   .grid-cell.empty {
     border-width: 0.25px;
+  }
+  
+  .grid-cell {
+    border-radius: calc(8px * 1.25);
   }
 }
 

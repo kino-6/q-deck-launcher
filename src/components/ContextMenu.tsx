@@ -17,7 +17,7 @@ interface ContextMenuProps {
   gridPosition?: { row: number; col: number } | null;
 }
 
-export const ContextMenu: React.FC<ContextMenuProps> = ({
+export const ContextMenu: React.FC<ContextMenuProps> = React.memo(({
   isVisible,
   x,
   y,
@@ -228,6 +228,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       </motion.div>
     </AnimatePresence>
   );
-};
+});
+
+ContextMenu.displayName = 'ContextMenu';
 
 export default ContextMenu;

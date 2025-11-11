@@ -20,7 +20,7 @@ export const useGridLayout = ({
   currentProfileIndex, 
   currentPageIndex 
 }: UseGridLayoutProps) => {
-  // Simplified and reliable cell size calculation
+  // Enhanced cell size calculation with DPI awareness
   const calculateOptimalCellSize = useCallback(() => {
     if (!config) return 96;
     
@@ -34,17 +34,22 @@ export const useGridLayout = ({
     
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
+    const pixelRatio = window.devicePixelRatio;
     
-    const availableWidth = viewportWidth * 0.9;
-    const availableHeight = viewportHeight * 0.85;
+    // Adjust available space based on DPI
+    // High DPI displays need slightly more conservative spacing
+    const dpiAdjustment = pixelRatio > 1.5 ? 0.88 : 0.9;
+    const availableWidth = viewportWidth * dpiAdjustment;
+    const availableHeight = viewportHeight * (dpiAdjustment - 0.03);
     
     const maxCellWidth = (availableWidth - (cols - 1) * baseGapSize) / cols;
     const maxCellHeight = (availableHeight - (rows - 1) * baseGapSize) / rows;
     
     const calculatedSize = Math.min(maxCellWidth, maxCellHeight);
     
-    const minSize = 64;
-    const maxSize = 128;
+    // Adjust min/max sizes based on DPI for better scaling
+    const minSize = pixelRatio > 1.5 ? 72 : 64;
+    const maxSize = pixelRatio > 1.5 ? 140 : 128;
     
     return Math.max(minSize, Math.min(maxSize, Math.floor(calculatedSize)));
   }, [config, currentProfileIndex, currentPageIndex]);
@@ -54,8 +59,16 @@ export const useGridLayout = ({
     
     const cellSize = calculateOptimalCellSize();
     const baseGap = config.ui.window.gap_px;
+    const pixelRatio = window.devicePixelRatio;
     
-    const scaledGap = (cellSize / 96) * baseGap;
+    // Scale gap based on cell size
+    let scaledGap = (cellSize / 96) * baseGap;
+    
+    // Apply DPI-aware adjustments
+    if (pixelRatio > 1.5) {
+      // High DPI: slightly increase gap for better visual separation
+      scaledGap *= 1.1;
+    }
     
     return Math.max(4, Math.min(16, Math.round(scaledGap)));
   }, [config, calculateOptimalCellSize]);

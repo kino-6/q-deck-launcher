@@ -17,7 +17,7 @@ interface ActionButtonProps {
   onContextMenu?: (event: React.MouseEvent, button: ActionButtonType) => void;
 }
 
-export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1, screenInfo, onSystemAction, onContextMenu }) => {
+export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, dpiScale = 1, screenInfo, onSystemAction, onContextMenu }) => {
   const [processedIcon, setProcessedIcon] = useState<IconInfo | null>(null);
   const [iconError, setIconError] = useState<string | null>(null);
   const [labelFontSize, setLabelFontSize] = useState<number | null>(null);
@@ -489,11 +489,39 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
     return 'long';
   };
 
+  // Memoize button style to avoid recalculation on every render
+  const buttonStyle = useMemo(() => getButtonStyle(), [
+    button.style,
+    button.label,
+    dpiScale,
+    screenInfo,
+    labelFontSize,
+    typeFontSize,
+  ]);
+
+  // Memoize action icon to avoid recalculation
+  const actionIcon = useMemo(() => getActionIcon(), [
+    processedIcon,
+    button.icon,
+    button.action,
+    button.action_type,
+    iconError,
+  ]);
+
+  // Memoize title string
+  const buttonTitle = useMemo(
+    () => `${button.label} (${button.action?.action_type === 'system' ? button.action.system_action : button.action_type})`,
+    [button.label, button.action, button.action_type]
+  );
+
+  // Memoize label length category
+  const labelLengthCategory = useMemo(() => getLabelLengthCategory(button.label), [button.label]);
+
   return (
     <motion.button
       ref={buttonRef}
       className="action-button"
-      style={getButtonStyle()}
+      style={buttonStyle}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       initial={{ scale: 1, rotateZ: 0 }}
@@ -507,12 +535,12 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
         rotateZ: 0,
         transition: { duration: 0.1 }
       }}
-      title={`${button.label} (${button.action?.action_type === 'system' ? button.action.system_action : button.action_type})`}
+      title={buttonTitle}
       data-system-action={button.action?.action_type === 'system' ? button.action.system_action : undefined}
-      data-label-length={getLabelLengthCategory(button.label)}
+      data-label-length={labelLengthCategory}
     >
       <div className="button-icon">
-        {getActionIcon()}
+        {actionIcon}
       </div>
       <div 
         ref={labelRef}
@@ -530,6 +558,18 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
       </div>
     </motion.button>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  // Only re-render if these specific props change
+  return (
+    prevProps.button === nextProps.button &&
+    prevProps.dpiScale === nextProps.dpiScale &&
+    prevProps.screenInfo === nextProps.screenInfo &&
+    prevProps.onSystemAction === nextProps.onSystemAction &&
+    prevProps.onContextMenu === nextProps.onContextMenu
+  );
+});
+
+ActionButton.displayName = 'ActionButton';
 
 export default ActionButton;

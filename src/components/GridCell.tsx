@@ -18,7 +18,7 @@ export interface GridCellProps {
   onEmptyCellContextMenu: (event: React.MouseEvent, row: number, col: number) => void;
 }
 
-export const GridCell: React.FC<GridCellProps> = ({
+export const GridCell: React.FC<GridCellProps> = React.memo(({
   index,
   row,
   col,
@@ -31,10 +31,28 @@ export const GridCell: React.FC<GridCellProps> = ({
   onContextMenu,
   onEmptyCellContextMenu,
 }) => {
+  // Memoize className to avoid string concatenation on every render
+  const cellClassName = React.useMemo(
+    () => `grid-cell ${button ? 'has-button' : 'empty'} ${isDragOver ? 'drag-over' : ''} ${isDropTarget ? 'drop-target' : ''}`,
+    [button, isDragOver, isDropTarget]
+  );
+
+  // Memoize empty cell className
+  const emptyCellClassName = React.useMemo(
+    () => `empty-cell ${isDropTarget ? 'drop-zone' : ''}`,
+    [isDropTarget]
+  );
+
+  // Memoize empty cell context menu handler
+  const handleEmptyCellContextMenu = React.useCallback(
+    (e: React.MouseEvent) => onEmptyCellContextMenu(e, row, col),
+    [onEmptyCellContextMenu, row, col]
+  );
+
   return (
     <motion.div
       key={index}
-      className={`grid-cell ${button ? 'has-button' : 'empty'} ${isDragOver ? 'drag-over' : ''} ${isDropTarget ? 'drop-target' : ''}`}
+      className={cellClassName}
       initial={{ opacity: 0, scale: 0.8, y: 20 }}
       animate={{ 
         opacity: 1, 
@@ -55,8 +73,8 @@ export const GridCell: React.FC<GridCellProps> = ({
         />
       ) : (
         <div 
-          className={`empty-cell ${isDropTarget ? 'drop-zone' : ''}`}
-          onContextMenu={(e) => onEmptyCellContextMenu(e, row, col)}
+          className={emptyCellClassName}
+          onContextMenu={handleEmptyCellContextMenu}
         >
           {isDropTarget && (
             <div className="drop-indicator">
@@ -68,6 +86,23 @@ export const GridCell: React.FC<GridCellProps> = ({
       )}
     </motion.div>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison for React.memo
+  return (
+    prevProps.index === nextProps.index &&
+    prevProps.row === nextProps.row &&
+    prevProps.col === nextProps.col &&
+    prevProps.button === nextProps.button &&
+    prevProps.isDragOver === nextProps.isDragOver &&
+    prevProps.isDropTarget === nextProps.isDropTarget &&
+    prevProps.dpiScale === nextProps.dpiScale &&
+    prevProps.screenInfo === nextProps.screenInfo &&
+    prevProps.onSystemAction === nextProps.onSystemAction &&
+    prevProps.onContextMenu === nextProps.onContextMenu &&
+    prevProps.onEmptyCellContextMenu === nextProps.onEmptyCellContextMenu
+  );
+});
+
+GridCell.displayName = 'GridCell';
 
 export default GridCell;

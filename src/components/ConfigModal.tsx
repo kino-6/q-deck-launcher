@@ -15,7 +15,7 @@ export interface ConfigModalProps {
   onUndo: () => Promise<void>;
 }
 
-export const ConfigModal: React.FC<ConfigModalProps> = ({
+export const ConfigModal: React.FC<ConfigModalProps> = React.memo(({
   showConfig,
   tempConfig,
   config,
@@ -27,6 +27,32 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
   onUpdateThemeColor,
   onUndo,
 }) => {
+  // Memoize grid size options
+  const gridSizeOptions = React.useMemo(() => [
+    { rows: 2, cols: 4, label: '2×4' },
+    { rows: 3, cols: 4, label: '3×4' },
+    { rows: 3, cols: 6, label: '3×6' },
+    { rows: 4, cols: 6, label: '4×6' },
+    { rows: 4, cols: 8, label: '4×8' },
+    { rows: 5, cols: 8, label: '5×8' },
+  ], []);
+
+  // Memoize theme options
+  const themeOptions = React.useMemo(() => [
+    { value: 'dark', label: 'Dark', color: '#1e1e1e' },
+    { value: 'blue', label: 'Blue', color: '#1e3a8a' },
+    { value: 'green', label: 'Green', color: '#166534' },
+    { value: 'purple', label: 'Purple', color: '#7c3aed' },
+    { value: 'red', label: 'Red', color: '#dc2626' },
+    { value: 'orange', label: 'Orange', color: '#ea580c' },
+  ], []);
+
+  // Memoize current page
+  const currentPage = React.useMemo(
+    () => tempConfig?.profiles?.[currentProfileIndex]?.pages?.[currentPageIndex],
+    [tempConfig, currentProfileIndex, currentPageIndex]
+  );
+
   return (
     <AnimatePresence>
       {showConfig && tempConfig && config && (
@@ -75,19 +101,11 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
               <div className="config-section">
                 <h4>Grid Size</h4>
                 <div className="grid-size-options">
-                  {[
-                    { rows: 2, cols: 4, label: '2×4' },
-                    { rows: 3, cols: 4, label: '3×4' },
-                    { rows: 3, cols: 6, label: '3×6' },
-                    { rows: 4, cols: 6, label: '4×6' },
-                    { rows: 4, cols: 8, label: '4×8' },
-                    { rows: 5, cols: 8, label: '5×8' },
-                  ].map(({ rows, cols, label }) => (
+                  {gridSizeOptions.map(({ rows, cols, label }) => (
                     <button
                       key={label}
                       className={`size-option ${
-                        tempConfig?.profiles?.[currentProfileIndex]?.pages?.[currentPageIndex]?.rows === rows &&
-                        tempConfig?.profiles?.[currentProfileIndex]?.pages?.[currentPageIndex]?.cols === cols
+                        currentPage?.rows === rows && currentPage?.cols === cols
                           ? 'active' : ''
                       }`}
                       onClick={(e) => {
@@ -107,14 +125,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
               <div className="config-section">
                 <h4>Theme</h4>
                 <div className="theme-options">
-                  {[
-                    { value: 'dark', label: 'Dark', color: '#1e1e1e' },
-                    { value: 'blue', label: 'Blue', color: '#1e3a8a' },
-                    { value: 'green', label: 'Green', color: '#166534' },
-                    { value: 'purple', label: 'Purple', color: '#7c3aed' },
-                    { value: 'red', label: 'Red', color: '#dc2626' },
-                    { value: 'orange', label: 'Orange', color: '#ea580c' },
-                  ].map(({ value, label, color }) => (
+                  {themeOptions.map(({ value, label, color }) => (
                     <button
                       key={value}
                       className={`theme-option ${tempConfig?.ui?.window?.theme === value ? 'active' : ''}`}
@@ -165,6 +176,8 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
       )}
     </AnimatePresence>
   );
-};
+});
+
+ConfigModal.displayName = 'ConfigModal';
 
 export default ConfigModal;

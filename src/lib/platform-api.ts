@@ -171,11 +171,10 @@ export const tauriAPI = {
   getOptimalGridLayout: async () => ({} as GridLayout),
   calculateGridMetrics: async () => ({} as GridMetrics),
   
-  // Icon processing - simplified for Electron
-  processIcon: async (iconPath: string, _fallbackPath?: string): Promise<IconInfo> => {
-    // Simple icon processing for Electron
-    // Check if it's an emoji (short string, no file extension)
-    if (iconPath.length <= 4 && !iconPath.includes('.')) {
+  // Icon processing - enhanced for PNG, ICO, SVG support
+  processIcon: async (iconPath: string, fallbackPath?: string): Promise<IconInfo> => {
+    // Check if it's an emoji (short string, no file extension, no path separators)
+    if (iconPath.length <= 4 && !iconPath.includes('.') && !iconPath.includes('/') && !iconPath.includes('\\')) {
       return {
         path: iconPath,
         icon_type: 'Emoji'
@@ -190,7 +189,60 @@ export const tauriAPI = {
       };
     }
     
-    // Assume it's a file path
+    // Check if it's a file path
+    if (iconPath.includes('.')) {
+      const extension = iconPath.split('.').pop()?.toLowerCase();
+      
+      // Handle different file formats
+      if (extension === 'png' || extension === 'jpg' || extension === 'jpeg' || extension === 'ico' || extension === 'svg') {
+        // For local files, convert to file:// URL for proper loading
+        let fullPath = iconPath;
+        
+        // If it's a relative path, try to resolve it
+        if (!iconPath.startsWith('file://') && !iconPath.match(/^[a-zA-Z]:\\/)) {
+          // Try to get the full path from the icon cache
+          try {
+            fullPath = await platformAPI.getIconPath(iconPath);
+          } catch (err) {
+            logger.warn('Failed to resolve icon path:', err);
+            fullPath = iconPath;
+          }
+        }
+        
+        // Convert to data URL for better compatibility
+        try {
+          // For SVG files, we can load them directly
+          if (extension === 'svg') {
+            return {
+              path: fullPath.startsWith('file://') ? fullPath : `file://${fullPath}`,
+              icon_type: 'File'
+            };
+          }
+          
+          // For other image formats, return the file path
+          return {
+            path: fullPath.startsWith('file://') ? fullPath : `file://${fullPath}`,
+            icon_type: 'File'
+          };
+        } catch (err) {
+          logger.error('Failed to process icon file:', err);
+        }
+      }
+      
+      // If it's an executable and we have a fallback path, try to extract icon
+      if ((extension === 'exe' || extension === 'lnk') && fallbackPath) {
+        try {
+          const extractedIcon = await tauriAPI.extractExecutableIcon(fallbackPath);
+          if (extractedIcon.path) {
+            return extractedIcon;
+          }
+        } catch (err) {
+          logger.warn('Failed to extract icon from executable:', err);
+        }
+      }
+    }
+    
+    // Default: treat as file path
     return {
       path: iconPath,
       icon_type: 'File'

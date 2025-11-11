@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { logger } from '../utils/logger';
 import { QDeckConfig, ActionButton as ActionButtonType, tauriAPI } from '../lib/platform-api';
 
@@ -13,9 +13,12 @@ export interface UseButtonOperationsProps {
 
 export interface UseButtonOperationsReturn {
   handleEditButton: (button: ActionButtonType | null) => void;
+  handleSaveEditedButton: (updatedButton: ActionButtonType) => Promise<void>;
   handleRemoveButton: (button: ActionButtonType) => Promise<void>;
   handleAddButton: (row: number, col: number) => Promise<void>;
   handleUndo: () => Promise<void>;
+  editingButton: ActionButtonType | null;
+  setEditingButton: (button: ActionButtonType | null) => void;
 }
 
 export const useButtonOperations = ({
@@ -27,10 +30,65 @@ export const useButtonOperations = ({
   closeContextMenu,
 }: UseButtonOperationsProps): UseButtonOperationsReturn => {
   
+  const [editingButton, setEditingButton] = useState<ActionButtonType | null>(null);
+  
   const handleEditButton = useCallback((button: ActionButtonType | null) => {
     logger.log('Edit button:', button?.label);
-    logger.log('Button edit feature will be implemented in the future');
-  }, []);
+    setEditingButton(button);
+    closeContextMenu?.();
+  }, [closeContextMenu]);
+
+  const handleSaveEditedButton = useCallback(async (updatedButton: ActionButtonType) => {
+    logger.log('Saving edited button:', updatedButton.label);
+    
+    const activeConfig = tempConfig || config;
+    if (!activeConfig) {
+      logger.error('No config available for saving edited button');
+      return;
+    }
+    
+    try {
+      const newConfig = JSON.parse(JSON.stringify(activeConfig));
+      
+      if (newConfig.profiles[currentProfileIndex]?.pages[currentPageIndex]) {
+        const buttons = newConfig.profiles[currentProfileIndex].pages[currentPageIndex].buttons;
+        const buttonIndex = buttons.findIndex((btn: ActionButtonType) => 
+          btn.position.row === updatedButton.position.row &&
+          btn.position.col === updatedButton.position.col
+        );
+        
+        if (buttonIndex !== -1) {
+          // Update the button
+          buttons[buttonIndex] = updatedButton;
+          logger.log(`Button "${updatedButton.label}" updated at position (${updatedButton.position.row}, ${updatedButton.position.col})`);
+          
+          // Update tempConfig if we're in config mode
+          if (tempConfig) {
+            setTempConfig(newConfig);
+          }
+          
+          // Save the configuration
+          try {
+            await tauriAPI.saveConfig(newConfig);
+            logger.log('Configuration saved successfully after button edit');
+            
+            // Reload the page to reflect changes
+            setTimeout(() => window.location.reload(), 500);
+          } catch (saveErr) {
+            logger.error('Failed to save configuration after button edit:', saveErr);
+            alert(`Failed to save configuration: ${saveErr}`);
+          }
+        } else {
+          logger.warn('Button not found in configuration');
+        }
+      } else {
+        logger.error('Invalid profile or page index');
+      }
+    } catch (err) {
+      logger.error('Failed to save edited button:', err);
+      alert(`Failed to save edited button: ${err}`);
+    }
+  }, [tempConfig, config, currentProfileIndex, currentPageIndex, setTempConfig]);
 
   // Handle removing button
   const handleRemoveButton = useCallback(async (button: ActionButtonType) => {
@@ -177,9 +235,12 @@ export const useButtonOperations = ({
 
   return {
     handleEditButton,
+    handleSaveEditedButton,
     handleRemoveButton,
     handleAddButton,
     handleUndo,
+    editingButton,
+    setEditingButton,
   };
 };
 

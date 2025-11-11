@@ -1,9 +1,10 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, screen, shell, nativeImage } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain, screen, net } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import yaml from 'yaml';
-import { spawn } from 'child_process';
+import { ActionExecutor } from './actions/ActionExecutor.js';
+import { registerAllHandlers } from './ipc/index.js';
 
 // Simple logger (only logs in development)
 const isDev = process.env.NODE_ENV === 'development';
@@ -22,6 +23,9 @@ log('Preload script path:', path.join(__dirname, 'preload.cjs'));
 let mainWindow = null;
 let overlayWindow = null;
 let config = null;
+
+// Initialize action executor
+const actionExecutor = new ActionExecutor();
 
 // Config file path
 const configPath = path.join(app.getPath('userData'), 'config.yaml');
@@ -66,8 +70,8 @@ async function extractIconFromExe(exePath) {
     
     // Return the relative path from userData
     return `icon-cache/${iconFileName}`;
-  } catch (err) {
-    error('Failed to extract icon from executable:', err);
+  } catch (iconErr) {
+    error('Failed to extract icon from executable:', iconErr);
     return null;
   }
 }
@@ -90,7 +94,7 @@ function loadConfig(mode = 'normal') {
       config = createDefaultConfig();
       saveConfig();
     }
-  } catch (error) {
+  } catch (err) {
     error('Failed to load config:', err);
     config = createDefaultConfig();
   }
@@ -102,7 +106,7 @@ function saveConfig() {
     const yamlStr = yaml.stringify(config);
     fs.writeFileSync(configPath, yamlStr, 'utf8');
     log('Configuration saved');
-  } catch (error) {
+  } catch (err) {
     error('Failed to save config:', err);
   }
 }
@@ -185,7 +189,7 @@ function createDefaultConfig() {
                 position: { row: 2, col: 1 },
                 action_type: 'system',
                 label: 'Settings',
-                icon: '⚙︁E,
+                icon: '⚙️',
                 config: {},
                 action: {
                   action_type: 'system',
@@ -232,7 +236,7 @@ function createMainWindow() {
 // Create overlay window
 function createOverlayWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();
-  const { width, height } = primaryDisplay.workAreaSize;
+  const { width } = primaryDisplay.workAreaSize;
 
   overlayWindow = new BrowserWindow({
     width: config.ui.window.width_px,
@@ -287,7 +291,7 @@ function createOverlayWindow() {
 
   // Forward console messages from renderer to main process (Terminal)
   // Note: This helps debug drag and drop issues by showing renderer logs in terminal
-  overlayWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+  overlayWindow.webContents.on('console-message', (_event, level, message) => {
     const levelMap = {
       0: 'LOG',
       1: 'WARN',
@@ -377,16 +381,16 @@ function registerHotkeys() {
 
 // Enable file path access for drag and drop
 // This intercepts file drops at the webContents level and sends full paths via IPC
-app.on('web-contents-created', (event, contents) => {
+app.on('web-contents-created', (_event, contents) => {
   console.log('🔧 Setting up file drop interception for webContents');
   
   // Prevent default file navigation
-  contents.on('will-navigate', (event, navigationUrl) => {
+  contents.on('will-navigate', (navEvent, navigationUrl) => {
     console.log('🔍 will-navigate event:', navigationUrl);
     
     // Check if this is a file drop (file:// URL)
     if (navigationUrl.startsWith('file://')) {
-      event.preventDefault();
+      navEvent.preventDefault();
       const filePath = decodeURIComponent(navigationUrl.replace(/^file:\/\/\//, ''));
       console.log('📁 File dropped (intercepted via will-navigate):', filePath);
       
@@ -413,9 +417,10 @@ app.on('web-contents-created', (event, contents) => {
   });
   
   // Enable file protocol for this webContents
-  contents.session.protocol.registerFileProtocol('file', (request, callback) => {
-    const url = request.url.substr(7);
-    callback({ path: decodeURIComponent(url) });
+  contents.session.protocol.handle('file', (request) => {
+    const url = request.url.substring(7);
+    const filePath = decodeURIComponent(url);
+    return net.fetch(`file://${filePath}`);
   });
 });
 
@@ -457,171 +462,26 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll();
 });
 
-// IPC Handlers
-ipcMain.handle('get-config', async () => {
-  return config;
-});
-
-// Receive file paths from injected code and broadcast to renderer
-ipcMain.handle('send-file-paths', async (event, filePaths) => {
-  console.log('📥 Received file paths from injected code:', filePaths);
-  
-  // Send the file paths to the renderer via the file-drop-paths channel
-  // This will be picked up by the onFileDrop listener in the React app
-  event.sender.send('file-drop-paths', filePaths);
-  
-  return { success: true };
-});
-
-ipcMain.handle('save-config', async (event, newConfig) => {
-  config = newConfig;
-  saveConfig();
-  
-  // Re-register hotkeys with new config
-  registerHotkeys();
-  
-  return { success: true };
-});
-
-ipcMain.handle('show-overlay', async () => {
-  showOverlay();
-  return { success: true };
-});
-
-ipcMain.handle('hide-overlay', async () => {
-  hideOverlay();
-  return { success: true };
-});
-
-ipcMain.handle('toggle-overlay', async () => {
-  toggleOverlay();
-  return { success: true };
-});
-
-ipcMain.handle('execute-action', async (event, actionConfig) => {
-  log('Executing action:', actionConfig);
-  
-  try {
-    if (actionConfig.type === 'LaunchApp') {
-      const { path: appPath, args, workdir, env } = actionConfig;
-      
-      const options = {
-        detached: true,
-        stdio: 'ignore'
-      };
-      
-      if (workdir) {
-        options.cwd = workdir;
-      }
-      
-      if (env) {
-        options.env = { ...process.env, ...env };
-      }
-      
-      const child = spawn(appPath, args || [], options);
-      child.unref();
-      
-      return {
-        success: true,
-        message: `Launched ${appPath}`
-      };
-    } else if (actionConfig.type === 'Open') {
-      await shell.openPath(actionConfig.target);
-      
-      return {
-        success: true,
-        message: `Opened ${actionConfig.target}`
-      };
-    } else if (actionConfig.type === 'Terminal') {
-      // TODO: Implement terminal actions
-      return {
-        success: false,
-        message: 'Terminal actions not yet implemented'
-      };
-    }
-    
-    return {
-      success: false,
-      message: 'Unknown action type'
-    };
-  } catch (error) {
-    error('Action execution failed:', error);
-    return {
-      success: false,
-      message: error.message
-    };
+// IPC Handlers - Register all handlers using modular approach
+registerAllHandlers(ipcMain, {
+  actionExecutor,
+  configManager: {
+    getConfig: () => config,
+    saveConfig: (newConfig) => {
+      config = newConfig;
+      saveConfig();
+    },
+    registerHotkeys
+  },
+  overlayManager: {
+    showOverlay,
+    hideOverlay,
+    toggleOverlay
+  },
+  utilityManager: {
+    extractIcon: extractIconFromExe,
+    getIconPath: (relativePath) => path.join(app.getPath('userData'), relativePath)
   }
-});
-
-// Profile management
-ipcMain.handle('get-current-profile', async () => {
-  if (config && config.profiles && config.profiles.length > 0) {
-    return {
-      index: 0,
-      name: config.profiles[0].name
-    };
-  }
-  return null;
-});
-
-ipcMain.handle('get-current-page', async () => {
-  if (config && config.profiles && config.profiles.length > 0) {
-    const profile = config.profiles[0];
-    if (profile.pages && profile.pages.length > 0) {
-      return {
-        index: 0,
-        name: profile.pages[0].name
-      };
-    }
-  }
-  return null;
-});
-
-ipcMain.handle('get-navigation-context', async () => {
-  if (config && config.profiles && config.profiles.length > 0) {
-    const profile = config.profiles[0];
-    return {
-      profile_index: 0,
-      page_index: 0,
-      total_pages: profile.pages ? profile.pages.length : 0,
-      has_previous_page: false,
-      has_next_page: profile.pages && profile.pages.length > 1
-    };
-  }
-  return null;
-});
-
-// Icon extraction
-ipcMain.handle('extract-icon', async (event, exePath) => {
-  log('IPC: extract-icon called for:', exePath);
-  
-  try {
-    const iconPath = await extractIconFromExe(exePath);
-    
-    if (iconPath) {
-      return {
-        success: true,
-        iconPath: iconPath
-      };
-    } else {
-      return {
-        success: false,
-        message: 'Failed to extract icon'
-      };
-    }
-  } catch (error) {
-    error('IPC: extract-icon failed:', error);
-    return {
-      success: false,
-      message: error.message
-    };
-  }
-});
-
-// Get icon cache path
-ipcMain.handle('get-icon-path', async (event, relativePath) => {
-  const fullPath = path.join(app.getPath('userData'), relativePath);
-  return fullPath;
 });
 
 log('Electron main process started');

@@ -11,7 +11,7 @@ interface ThemeSelectorProps {
   isVisible: boolean;
 }
 
-export const ThemeSelector: React.FC<ThemeSelectorProps> = ({
+export const ThemeSelector: React.FC<ThemeSelectorProps> = React.memo(({
   currentStyle,
   onThemeSelect,
   onClose,
@@ -248,6 +248,8 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({
       </motion.div>
     </AnimatePresence>
   );
-};
+});
+
+ThemeSelector.displayName = 'ThemeSelector';
 
 export default ThemeSelector;

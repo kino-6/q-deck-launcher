@@ -11,6 +11,8 @@ export interface ScreenInfo {
   dpiCategory?: string;
   physicalWidth?: number;
   physicalHeight?: number;
+  scaleFactor?: number; // Actual scale factor to apply (capped at 2.0)
+  isHighDPI?: boolean; // True if pixelRatio > 1.25
 }
 
 export interface UseScreenInfoReturn {
@@ -38,23 +40,29 @@ export const useScreenInfo = (): UseScreenInfoReturn => {
 
   const [dpiScale, setDpiScale] = useState(1);
 
-  // Simplified screen info detection
+  // Enhanced screen info detection with better DPI handling
   const updateScreenInfo = useCallback(() => {
+    const pixelRatio = window.devicePixelRatio;
+    const scaleFactor = Math.min(pixelRatio, 2.0); // Cap at 2.0 for stability
+    const isHighDPI = pixelRatio > 1.25;
+    
     const newScreenInfo: ScreenInfo = {
       width: window.screen.width,
       height: window.screen.height,
       availWidth: window.screen.availWidth,
       availHeight: window.screen.availHeight,
-      pixelRatio: window.devicePixelRatio,
+      pixelRatio,
       colorDepth: window.screen.colorDepth,
       orientation: window.screen.orientation?.type || 'landscape-primary',
-      dpiCategory: getDPICategory(window.devicePixelRatio),
-      physicalWidth: Math.round(window.screen.width / window.devicePixelRatio),
-      physicalHeight: Math.round(window.screen.height / window.devicePixelRatio),
+      dpiCategory: getDPICategory(pixelRatio),
+      physicalWidth: Math.round(window.screen.width / pixelRatio),
+      physicalHeight: Math.round(window.screen.height / pixelRatio),
+      scaleFactor,
+      isHighDPI,
     };
     
     setScreenInfo(newScreenInfo);
-    setDpiScale(Math.min(window.devicePixelRatio, 2.0));
+    setDpiScale(scaleFactor);
   }, []);
 
   useEffect(() => {

@@ -1,9 +1,10 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import ContextMenu from './ContextMenu';
 import ThemeSelector from './ThemeSelector';
 import GridDragDrop from './GridDragDrop';
 import ConfigModal from './ConfigModal';
+import ButtonEditModal from './ButtonEditModal';
 import GridCell from './GridCell';
 import { QDeckConfig, ProfileInfo, PageInfo } from '../lib/platform-api';
 import { useScreenInfo } from '../hooks/useScreenInfo';
@@ -64,9 +65,12 @@ export const Grid: React.FC<GridProps> = ({ config, currentProfile, currentPage,
 
   const {
     handleEditButton,
+    handleSaveEditedButton,
     handleRemoveButton,
     handleAddButton,
     handleUndo,
+    editingButton,
+    setEditingButton,
   } = useButtonOperations({
     config,
     tempConfig,
@@ -131,7 +135,8 @@ export const Grid: React.FC<GridProps> = ({ config, currentProfile, currentPage,
   }
 
   // Create a grid array with buttons positioned correctly
-  const gridCells = createGridCells(page);
+  // Memoize grid cells to avoid recalculation on every render
+  const gridCells = React.useMemo(() => createGridCells(page), [page]);
 
   return (
     <GridDragDrop
@@ -223,6 +228,15 @@ export const Grid: React.FC<GridProps> = ({ config, currentProfile, currentPage,
             onThemeSelect={handleThemeSelect}
             onClose={closeThemeSelector}
           />
+
+          {/* Button Edit Modal */}
+          {editingButton && (
+            <ButtonEditModal
+              button={editingButton}
+              onClose={() => setEditingButton(null)}
+              onSave={handleSaveEditedButton}
+            />
+          )}
         </>
       )}
     </GridDragDrop>
