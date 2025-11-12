@@ -274,12 +274,15 @@ function createOverlayWindow() {
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
+    backgroundColor: '#00000000', // Fully transparent background
+    hasShadow: false, // Disable shadow for better performance
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.cjs'),
       webSecurity: true,
-      enableRemoteModule: false
+      enableRemoteModule: false,
+      offscreen: false // Ensure on-screen rendering
     }
   });
   
@@ -357,7 +360,9 @@ function showOverlay() {
   
   if (overlayWindow) {
     log('Showing overlay window...');
-    overlayWindow.show();
+    // Use showInactive first to prevent flicker, then focus
+    overlayWindow.showInactive();
+    overlayWindow.setAlwaysOnTop(true, 'screen-saver');
     overlayWindow.focus();
     log('Overlay window shown and focused');
   } else {
@@ -368,6 +373,7 @@ function showOverlay() {
 // Hide overlay
 function hideOverlay() {
   if (overlayWindow && overlayWindow.isVisible()) {
+    // Quick hide without animation
     overlayWindow.hide();
   }
 }

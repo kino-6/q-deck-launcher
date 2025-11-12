@@ -21,23 +21,19 @@ export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, d
   const [processedIcon, setProcessedIcon] = useState<IconInfo | null>(null);
   const [iconError, setIconError] = useState<string | null>(null);
   const [labelFontSize, setLabelFontSize] = useState<number | null>(null);
-  const [typeFontSize, setTypeFontSize] = useState<number | null>(null);
   
   const labelRef = useRef<HTMLDivElement>(null);
-  const typeRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Dynamic font size adjustment function
   const adjustTextSize = useCallback(() => {
-    if (!labelRef.current || !typeRef.current || !buttonRef.current) return;
+    if (!labelRef.current || !buttonRef.current) return;
 
     const buttonRect = buttonRef.current.getBoundingClientRect();
     const availableWidth = buttonRect.width - 16; // Account for padding
-    const availableHeight = buttonRect.height;
 
     // Calculate base font sizes based on DPI and screen info
     const baseLabelSize = 0.75 * Math.min(dpiScale, 1.6) * (screenInfo ? getScreenScaleFactor(screenInfo) : 1);
-    const baseTypeSize = 0.6 * Math.min(dpiScale, 1.4) * (screenInfo ? getScreenScaleFactor(screenInfo) : 1);
 
     // Adjust label font size
     const labelText = button.label;
@@ -74,44 +70,8 @@ export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, d
     optimalLabelSize = low;
     document.body.removeChild(tempLabel);
 
-    // Adjust type font size similarly
-    const typeText = button.action_type;
-    const maxTypeSize = baseTypeSize * 16;
-    const minTypeSize = Math.max(6, maxTypeSize * 0.7);
-    
-    let optimalTypeSize = maxTypeSize;
-    
-    const tempType = document.createElement('div');
-    tempType.style.position = 'absolute';
-    tempType.style.visibility = 'hidden';
-    tempType.style.whiteSpace = 'nowrap';
-    tempType.style.fontFamily = window.getComputedStyle(typeRef.current).fontFamily;
-    tempType.style.fontWeight = window.getComputedStyle(typeRef.current).fontWeight;
-    tempType.style.textTransform = 'uppercase';
-    tempType.style.letterSpacing = '0.2px';
-    tempType.textContent = typeText;
-    document.body.appendChild(tempType);
-
-    low = minTypeSize;
-    high = maxTypeSize;
-    
-    while (high - low > 1) {
-      const mid = (low + high) / 2;
-      tempType.style.fontSize = `${mid}px`;
-      
-      if (tempType.offsetWidth <= availableWidth) {
-        low = mid;
-      } else {
-        high = mid;
-      }
-    }
-    
-    optimalTypeSize = low;
-    document.body.removeChild(tempType);
-
     setLabelFontSize(optimalLabelSize);
-    setTypeFontSize(optimalTypeSize);
-  }, [button.label, button.action_type, dpiScale, screenInfo]);
+  }, [button.label, dpiScale, screenInfo]);
 
   // Helper function to get screen scale factor
   const getScreenScaleFactor = (screenInfo: any): number => {
@@ -373,9 +333,6 @@ export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, d
       if (labelFontSize) {
         baseStyle['--dynamic-label-size'] = `${labelFontSize}px`;
       }
-      if (typeFontSize) {
-        baseStyle['--dynamic-type-size'] = `${typeFontSize}px`;
-      }
       
       if (button.style.font_family) {
         baseStyle.fontFamily = button.style.font_family;
@@ -496,7 +453,6 @@ export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, d
     dpiScale,
     screenInfo,
     labelFontSize,
-    typeFontSize,
   ]);
 
   // Memoize action icon to avoid recalculation
@@ -548,13 +504,6 @@ export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, d
         style={labelFontSize ? { fontSize: `${labelFontSize}px` } : undefined}
       >
         {button.label}
-      </div>
-      <div 
-        ref={typeRef}
-        className="button-type"
-        style={typeFontSize ? { fontSize: `${typeFontSize}px` } : undefined}
-      >
-        {button.action_type}
       </div>
     </motion.button>
   );
