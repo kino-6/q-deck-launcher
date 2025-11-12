@@ -4,6 +4,7 @@
 param(
     [switch]$Force,
     [switch]$NoCleanup,
+    [switch]$NoDevTools,
     [int]$StartPort = 1420,
     [int]$MaxPortAttempts = 10
 )
@@ -12,12 +13,16 @@ Write-Host "Starting Q-Deck Launcher (Electron) in development mode..." -Foregro
 Write-Host "Parameters:" -ForegroundColor Cyan
 Write-Host "  -Force: Terminate existing processes" -ForegroundColor Gray
 Write-Host "  -NoCleanup: Skip process cleanup" -ForegroundColor Gray
+Write-Host "  -NoDevTools: Disable DevTools (for UX evaluation)" -ForegroundColor Gray
 Write-Host "  -StartPort: Starting port number (default: $StartPort)" -ForegroundColor Gray
 Write-Host "  -MaxPortAttempts: Maximum port search attempts (default: $MaxPortAttempts)" -ForegroundColor Gray
 Write-Host ""
 
 if ($Force) {
     Write-Host "Force mode enabled - will terminate existing processes" -ForegroundColor Yellow
+}
+if ($NoDevTools) {
+    Write-Host "DevTools disabled - running in UX evaluation mode" -ForegroundColor Yellow
 }
 Write-Host ""
 
@@ -328,9 +333,18 @@ Write-Host "Configuring development server to use port $availablePort..." -Foreg
 $env:VITE_PORT = $availablePort
 $env:PORT = $availablePort
 
+# Set DevTools flag
+if ($NoDevTools) {
+    $env:NO_DEVTOOLS = "true"
+    Write-Host "DevTools will be disabled" -ForegroundColor Yellow
+} else {
+    $env:NO_DEVTOOLS = "false"
+}
+
 Write-Host "Environment configured:" -ForegroundColor Green
 Write-Host "  VITE_PORT = $availablePort" -ForegroundColor Gray
 Write-Host "  HMR_PORT = $($availablePort + 1)" -ForegroundColor Gray
+Write-Host "  NO_DEVTOOLS = $env:NO_DEVTOOLS" -ForegroundColor Gray
 
 Write-Host ""
 Write-Host "Starting Electron development server on port $availablePort..." -ForegroundColor Green

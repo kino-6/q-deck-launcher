@@ -9,6 +9,7 @@ import { ProfileStateManager } from './ProfileStateManager.js';
 
 // Simple logger (only logs in development)
 const isDev = process.env.NODE_ENV === 'development';
+const noDevTools = process.env.NO_DEVTOOLS === 'true';
 const log = (...args) => isDev && console.log(...args);
 const warn = (...args) => console.warn(...args);
 const error = (...args) => console.error(...args);
@@ -245,7 +246,9 @@ function createMainWindow() {
     const mainURL = `http://localhost:${port}`;
     log('Main window URL:', mainURL);
     mainWindow.loadURL(mainURL);
-    mainWindow.webContents.openDevTools();
+    if (!noDevTools) {
+      mainWindow.webContents.openDevTools();
+    }
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
@@ -290,7 +293,9 @@ function createOverlayWindow() {
     const overlayURL = `http://localhost:${port}/overlay`;
     log('Overlay URL:', overlayURL);
     overlayWindow.loadURL(overlayURL);
-    overlayWindow.webContents.openDevTools();
+    if (!noDevTools) {
+      overlayWindow.webContents.openDevTools();
+    }
   } else {
     overlayWindow.loadFile(path.join(__dirname, '../dist/index.html'), {
       hash: '/overlay'

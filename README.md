@@ -23,7 +23,11 @@ A powerful, customizable application launcher with hotkey support for Windows.
 **標準起動方法（常にこれを使用）:**
 
 ```powershell
+# 通常の開発モード（DevTools付き）
 .\launch.ps1 -Force
+
+# UX評価モード（DevToolsなし）
+.\launch.ps1 -Force -NoDevTools
 ```
 
 **launch.ps1の機能:**
@@ -31,6 +35,7 @@ A powerful, customizable application launcher with hotkey support for Windows.
 - ✅ 既存プロセスのクリーンアップ
 - ✅ エラーハンドリング
 - ✅ 環境チェック
+- ✅ DevToolsの有効/無効切り替え
 
 **初回起動時:**
 ```powershell
@@ -142,7 +147,8 @@ q-deck-launcher/
 ### Available Scripts
 
 **開発:**
-- `.\launch.ps1 -Force` - 開発モードで起動（標準）
+- `.\launch.ps1 -Force` - 開発モードで起動（DevTools付き）
+- `.\launch.ps1 -Force -NoDevTools` - UX評価モード（DevToolsなし）
 - `npm run test` - テストを実行
 
 **ビルド:**
