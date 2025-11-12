@@ -67,11 +67,51 @@ export interface ElectronAPI {
    */
   getNavigationContext: () => Promise<NavigationContext>;
   
+  /**
+   * Get all profiles
+   */
+  getAllProfiles: () => Promise<ProfileInfo[]>;
+  
+  /**
+   * Get all pages for current profile
+   */
+  getCurrentProfilePages: () => Promise<PageInfo[]>;
+  
+  /**
+   * Switch to a specific profile by index
+   */
+  switchToProfile: (profileIndex: number) => Promise<ProfileInfo | null>;
+  
+  /**
+   * Switch to a specific profile by name
+   */
+  switchToProfileByName: (profileName: string) => Promise<ProfileInfo | null>;
+  
+  /**
+   * Switch to a specific page by index
+   */
+  switchToPage: (pageIndex: number) => Promise<PageInfo | null>;
+  
+  /**
+   * Go to next page
+   */
+  nextPage: () => Promise<PageInfo | null>;
+  
+  /**
+   * Go to previous page
+   */
+  previousPage: () => Promise<PageInfo | null>;
+  
   // File drop events
   /**
    * Register callback for file drop events
    */
   onFileDrop: (callback: (filePaths: string[]) => void) => void;
+  
+  /**
+   * Register callback for profile change events
+   */
+  onProfileChanged: (callback: (profileInfo: ProfileInfo) => void) => void;
   
   /**
    * Send file paths from renderer to main process

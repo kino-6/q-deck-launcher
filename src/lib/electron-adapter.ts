@@ -144,6 +144,76 @@ export const platformAPI = {
     throw new Error('No platform API available');
   },
 
+  getAllProfiles: async () => {
+    if (isElectron()) {
+      return window.electronAPI!.getAllProfiles();
+    } else if (isTauri()) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return invoke('get_all_profiles');
+    }
+    throw new Error('No platform API available');
+  },
+
+  getCurrentProfilePages: async () => {
+    if (isElectron()) {
+      return window.electronAPI!.getCurrentProfilePages();
+    } else if (isTauri()) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return invoke('get_current_profile_pages');
+    }
+    throw new Error('No platform API available');
+  },
+
+  switchToProfile: async (profileIndex: number) => {
+    if (isElectron()) {
+      return window.electronAPI!.switchToProfile(profileIndex);
+    } else if (isTauri()) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return invoke('switch_to_profile', { profileIndex });
+    }
+    throw new Error('No platform API available');
+  },
+
+  switchToProfileByName: async (profileName: string) => {
+    if (isElectron()) {
+      return window.electronAPI!.switchToProfileByName(profileName);
+    } else if (isTauri()) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return invoke('switch_to_profile_by_name', { profileName });
+    }
+    throw new Error('No platform API available');
+  },
+
+  switchToPage: async (pageIndex: number) => {
+    if (isElectron()) {
+      return window.electronAPI!.switchToPage(pageIndex);
+    } else if (isTauri()) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return invoke('switch_to_page', { pageIndex });
+    }
+    throw new Error('No platform API available');
+  },
+
+  nextPage: async () => {
+    if (isElectron()) {
+      return window.electronAPI!.nextPage();
+    } else if (isTauri()) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return invoke('next_page');
+    }
+    throw new Error('No platform API available');
+  },
+
+  previousPage: async () => {
+    if (isElectron()) {
+      return window.electronAPI!.previousPage();
+    } else if (isTauri()) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return invoke('previous_page');
+    }
+    throw new Error('No platform API available');
+  },
+
   onFileDrop: (callback: (files: string[]) => void) => {
     if (isElectron()) {
       window.electronAPI!.onFileDrop(callback);
@@ -153,6 +223,19 @@ export const platformAPI = {
         const currentWindow = getCurrentWindow();
         currentWindow.listen('tauri://file-drop', (event) => {
           callback(event.payload as string[]);
+        });
+      });
+    }
+  },
+
+  onProfileChanged: (callback: (profileInfo: any) => void) => {
+    if (isElectron()) {
+      window.electronAPI!.onProfileChanged(callback);
+    } else if (isTauri()) {
+      // Tauri profile change handling
+      import('@tauri-apps/api/event').then(({ listen }) => {
+        listen('profile-changed', (event) => {
+          callback(event.payload);
         });
       });
     }

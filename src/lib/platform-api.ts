@@ -135,37 +135,27 @@ export const tauriAPI = {
   executeAction: (actionConfig: any) => platformAPI.executeAction(actionConfig),
   
   // Profile management - now using electron-adapter
-  getProfiles: async () => {
-    const config: QDeckConfig = await platformAPI.getConfig();
-    return config.profiles.map((profile: Profile, index: number) => ({
-      index,
-      name: profile.name
-    }));
-  },
+  getProfiles: () => platformAPI.getAllProfiles(),
   getCurrentProfile: () => platformAPI.getCurrentProfile(),
   getCurrentPage: () => platformAPI.getCurrentPage(),
   getNavigationContext: () => platformAPI.getNavigationContext(),
-  getCurrentProfilePages: async () => {
-    const config: QDeckConfig = await platformAPI.getConfig();
-    const profile = config.profiles[0];
-    return profile.pages.map((page: Page, index: number) => ({
-      index,
-      name: page.name
-    }));
-  },
-  switchToProfile: async (_profileIndex: number): Promise<ProfileInfo | null> => null,
-  switchToProfileByName: async (_profileName: string): Promise<ProfileInfo | null> => null,
-  switchToPage: async (_pageIndex: number): Promise<PageInfo | null> => null,
+  getCurrentProfilePages: () => platformAPI.getCurrentProfilePages(),
+  switchToProfile: (profileIndex: number) => platformAPI.switchToProfile(profileIndex),
+  switchToProfileByName: (profileName: string) => platformAPI.switchToProfileByName(profileName),
+  switchToPage: (pageIndex: number) => platformAPI.switchToPage(pageIndex),
   
   // File drop - now using electron-adapter
   onFileDrop: (callback: (files: string[]) => void) => platformAPI.onFileDrop(callback),
   
+  // Profile change events - now using electron-adapter
+  onProfileChanged: (callback: (profileInfo: ProfileInfo) => void) => platformAPI.onProfileChanged(callback),
+  
   // Platform detection - now using electron-adapter
   getPlatform: () => platformAPI.getPlatform(),
   
-  // Placeholder functions for features not yet implemented in Electron
-  nextPage: async (): Promise<PageInfo | null> => null,
-  previousPage: async (): Promise<PageInfo | null> => null,
+  // Page navigation - now using electron-adapter
+  nextPage: () => platformAPI.nextPage(),
+  previousPage: () => platformAPI.previousPage(),
   getMonitorInfo: async () => [],
   getCurrentMonitor: async () => ({} as MonitorInfo),
   getOptimalGridLayout: async () => ({} as GridLayout),

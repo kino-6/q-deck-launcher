@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Grid from '../components/Grid';
-import { useProfile } from '../contexts/ProfileContext';
+import { useProfileStore, selectCurrentProfile, selectCurrentPage, selectNavigationContext, selectLoading, selectError } from '../store/profileStore';
+import { useProfileStoreInit } from '../hooks/useProfileStoreInit';
 import { tauriAPI, QDeckConfig } from '../lib/platform-api';
 import { logger } from '../utils/logger';
 import './Overlay.css';
@@ -10,15 +11,18 @@ function Overlay() {
   const [config, setConfig] = useState<QDeckConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const {
-    currentProfile,
-    currentPage,
-    navigationContext,
-    nextPage,
-    previousPage,
-    loading: profileLoading,
-    error: profileError
-  } = useProfile();
+  
+  // Initialize profile store and event listeners
+  useProfileStoreInit();
+  
+  // Use Zustand store with selectors for optimized re-renders
+  const currentProfile = useProfileStore(selectCurrentProfile);
+  const currentPage = useProfileStore(selectCurrentPage);
+  const navigationContext = useProfileStore(selectNavigationContext);
+  const profileLoading = useProfileStore(selectLoading);
+  const profileError = useProfileStore(selectError);
+  const nextPage = useProfileStore((state) => state.nextPage);
+  const previousPage = useProfileStore((state) => state.previousPage);
 
   useEffect(() => {
     loadConfig();

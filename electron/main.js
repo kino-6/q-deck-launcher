@@ -5,6 +5,7 @@ import fs from 'fs';
 import yaml from 'yaml';
 import { ActionExecutor } from './actions/ActionExecutor.js';
 import { registerAllHandlers } from './ipc/index.js';
+import { ProfileStateManager } from './ProfileStateManager.js';
 
 // Simple logger (only logs in development)
 const isDev = process.env.NODE_ENV === 'development';
@@ -27,11 +28,32 @@ let config = null;
 // Initialize action executor
 const actionExecutor = new ActionExecutor();
 
-// Config file path
-const configPath = path.join(app.getPath('userData'), 'config.yaml');
+// Initialize profile state manager
+const profileStateManager = new ProfileStateManager();
 
-// Icon cache directory
-const iconCachePath = path.join(app.getPath('userData'), 'icon-cache');
+// Determine config path (portable mode support)
+// Portable mode: config.yaml in application directory
+// Normal mode: config.yaml in userData directory
+function getConfigPath() {
+  const appDir = path.dirname(app.getPath('exe'));
+  const portableConfigPath = path.join(appDir, 'config.yaml');
+  
+  // Check if portable config exists
+  if (fs.existsSync(portableConfigPath)) {
+    log('Portable mode detected: using config from application directory');
+    return portableConfigPath;
+  }
+  
+  // Use normal mode (AppData)
+  return path.join(app.getPath('userData'), 'config.yaml');
+}
+
+// Config file path
+const configPath = getConfigPath();
+
+// Icon cache directory (always relative to config location)
+const configDir = path.dirname(configPath);
+const iconCachePath = path.join(configDir, 'icon-cache');
 
 // Ensure icon cache directory exists
 if (!fs.existsSync(iconCachePath)) {
@@ -375,6 +397,42 @@ function registerHotkeys() {
     });
   }
 
+  // Register profile-specific hotkeys
+  if (config && config.profiles) {
+    config.profiles.forEach((profile, index) => {
+      if (profile.hotkey) {
+        const success = globalShortcut.register(profile.hotkey, () => {
+          console.log(`Profile hotkey ${profile.hotkey} pressed for profile: ${profile.name}`);
+          
+          // Switch to the profile
+          const result = profileStateManager.switchToProfile(index, config);
+          
+          if (result) {
+            console.log(`Switched to profile: ${profile.name} (index: ${index})`);
+            
+            // Show overlay if it's not visible
+            if (!overlayWindow || !overlayWindow.isVisible()) {
+              showOverlay();
+            }
+            
+            // Notify the overlay window about the profile change
+            if (overlayWindow && overlayWindow.webContents) {
+              overlayWindow.webContents.send('profile-changed', result);
+            }
+          } else {
+            console.error(`Failed to switch to profile: ${profile.name}`);
+          }
+        });
+
+        if (success) {
+          console.log(`Profile hotkey ${profile.hotkey} registered for profile: ${profile.name}`);
+        } else {
+          console.error(`Failed to register profile hotkey ${profile.hotkey} for profile: ${profile.name}`);
+        }
+      }
+    });
+  }
+
   // Note: Escape key is handled in the overlay window itself, not as a global shortcut
   // This allows modals to handle Escape key first
 }
@@ -414,13 +472,6 @@ app.on('web-contents-created', (_event, contents) => {
     }
     
     return { action: 'allow' };
-  });
-  
-  // Enable file protocol for this webContents
-  contents.session.protocol.handle('file', (request) => {
-    const url = request.url.substring(7);
-    const filePath = decodeURIComponent(url);
-    return net.fetch(`file://${filePath}`);
   });
 });
 
@@ -481,7 +532,8 @@ registerAllHandlers(ipcMain, {
   utilityManager: {
     extractIcon: extractIconFromExe,
     getIconPath: (relativePath) => path.join(app.getPath('userData'), relativePath)
-  }
+  },
+  profileStateManager
 });
 
 log('Electron main process started');

@@ -6,6 +6,7 @@ import GridDragDrop from './GridDragDrop';
 import ConfigModal from './ConfigModal';
 import ButtonEditModal from './ButtonEditModal';
 import GridCell from './GridCell';
+import PageIndicator from './PageIndicator';
 import { QDeckConfig, ProfileInfo, PageInfo } from '../lib/platform-api';
 import { useScreenInfo } from '../hooks/useScreenInfo';
 import { useGridLayout } from '../hooks/useGridLayout';
@@ -13,6 +14,7 @@ import { useConfigModal } from '../hooks/useConfigModal';
 import { useContextMenu } from '../hooks/useContextMenu';
 import { useButtonOperations } from '../hooks/useButtonOperations';
 import { useThemeSelector } from '../hooks/useThemeSelector';
+import { usePageNavigation } from '../hooks/usePageNavigation';
 import { createGridCells } from '../utils/gridCalculations';
 import { handleSystemAction as handleSystemActionUtil, handleTestClick } from '../utils/configOperations';
 import './Grid.css';
@@ -88,6 +90,11 @@ export const Grid: React.FC<GridProps> = ({ config, currentProfile, currentPage,
   } = useThemeSelector({
     tempConfig,
     setTempConfig,
+  });
+
+  // Enable keyboard navigation for page switching
+  usePageNavigation({
+    enabled: true,
   });
 
   // Handle system actions
@@ -237,6 +244,9 @@ export const Grid: React.FC<GridProps> = ({ config, currentProfile, currentPage,
               onSave={handleSaveEditedButton}
             />
           )}
+
+          {/* Page Indicator */}
+          <PageIndicator />
         </>
       )}
     </GridDragDrop>

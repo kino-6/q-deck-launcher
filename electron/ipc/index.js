@@ -20,20 +20,22 @@ import { registerUtilityHandlers } from './utilityHandlers.js';
  * @param {Object} managers.configManager - Config manager with getConfig, saveConfig, registerHotkeys
  * @param {Object} managers.overlayManager - Overlay manager with show/hide/toggle methods
  * @param {Object} managers.utilityManager - Utility manager with extractIcon, getIconPath methods
+ * @param {Object} managers.profileStateManager - Profile state manager instance
  */
 export function registerAllHandlers(ipcMain, managers) {
   const {
     actionExecutor,
     configManager,
     overlayManager,
-    utilityManager
+    utilityManager,
+    profileStateManager
   } = managers;
   
   // Register all handler groups
   registerActionHandlers(ipcMain, actionExecutor);
   registerConfigHandlers(ipcMain, configManager);
   registerOverlayHandlers(ipcMain, overlayManager);
-  registerProfileHandlers(ipcMain, configManager.getConfig);
+  registerProfileHandlers(ipcMain, configManager.getConfig, profileStateManager);
   registerUtilityHandlers(ipcMain, utilityManager);
   
   console.log('✅ All IPC handlers registered successfully');

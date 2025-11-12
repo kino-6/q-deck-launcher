@@ -26,12 +26,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCurrentProfile: () => ipcRenderer.invoke('get-current-profile'),
   getCurrentPage: () => ipcRenderer.invoke('get-current-page'),
   getNavigationContext: () => ipcRenderer.invoke('get-navigation-context'),
+  getAllProfiles: () => ipcRenderer.invoke('get-all-profiles'),
+  getCurrentProfilePages: () => ipcRenderer.invoke('get-current-profile-pages'),
+  switchToProfile: (profileIndex) => ipcRenderer.invoke('switch-to-profile', profileIndex),
+  switchToProfileByName: (profileName) => ipcRenderer.invoke('switch-to-profile-by-name', profileName),
+  switchToPage: (pageIndex) => ipcRenderer.invoke('switch-to-page', pageIndex),
+  nextPage: () => ipcRenderer.invoke('next-page'),
+  previousPage: () => ipcRenderer.invoke('previous-page'),
   
   // File drop events
   onFileDrop: (callback) => {
     ipcRenderer.on('file-drop-paths', (event, filePaths) => {
       log('Received file paths from main process');
       callback(filePaths);
+    });
+  },
+  
+  // Profile change events
+  onProfileChanged: (callback) => {
+    ipcRenderer.on('profile-changed', (event, profileInfo) => {
+      log('Profile changed:', profileInfo);
+      callback(profileInfo);
     });
   },
   

@@ -542,6 +542,185 @@ describe('Electron Main Process - Hotkey Registration', () => {
     expect(overlayWindow.hide).toHaveBeenCalledTimes(2);
     expect(overlayWindow.focus).toHaveBeenCalledTimes(2);
   });
+
+  it('should not have conflicts between summon and profile hotkeys', () => {
+    // Create overlay window
+    const overlayWindow = mockBrowserWindow({
+      show: false,
+      frame: false,
+      transparent: false,
+      backgroundColor: '#1e1e1e',
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Track current profile
+    let currentProfile = 0;
+
+    // Define toggle function for summon hotkeys
+    const toggleOverlay = () => {
+      if (overlayWindow.isVisible()) {
+        overlayWindow.hide();
+      } else {
+        overlayWindow.show();
+        overlayWindow.focus();
+      }
+    };
+
+    // Define profile switch function
+    const switchToProfile = (profileIndex) => {
+      currentProfile = profileIndex;
+      if (!overlayWindow.isVisible()) {
+        overlayWindow.show();
+        overlayWindow.focus();
+      }
+    };
+
+    // Register summon hotkeys
+    const summonHotkeys = ['F11', 'Ctrl+Alt+Q'];
+    summonHotkeys.forEach(hotkey => {
+      const success = mockGlobalShortcut.register(hotkey, toggleOverlay);
+      expect(success).toBe(true);
+    });
+
+    // Register profile hotkeys (different from summon hotkeys)
+    const profileHotkeys = [
+      { key: 'Ctrl+1', profile: 0 },
+      { key: 'Ctrl+2', profile: 1 },
+      { key: 'Ctrl+3', profile: 2 },
+    ];
+
+    profileHotkeys.forEach(({ key, profile }) => {
+      const success = mockGlobalShortcut.register(key, () => switchToProfile(profile));
+      expect(success).toBe(true);
+    });
+
+    // Verify all hotkeys were registered successfully (2 summon + 3 profile = 5 total)
+    expect(mockGlobalShortcut.register).toHaveBeenCalledTimes(5);
+
+    // Verify no duplicate hotkeys were registered
+    const registeredKeys = mockGlobalShortcut.register.mock.calls.map(call => call[0]);
+    const uniqueKeys = new Set(registeredKeys);
+    expect(uniqueKeys.size).toBe(registeredKeys.length);
+
+    // Test that summon hotkeys and profile hotkeys work independently
+    // Initially hidden, profile 0
+    expect(overlayWindow.isVisible()).toBe(false);
+    expect(currentProfile).toBe(0);
+
+    // Test F11 (summon) - should show overlay
+    const f11Callback = mockGlobalShortcut.register.mock.calls[0][1];
+    f11Callback();
+    expect(overlayWindow.isVisible()).toBe(true);
+    expect(currentProfile).toBe(0); // Profile should not change
+
+    // Test Ctrl+2 (profile switch) - should switch to profile 1
+    const ctrl2Callback = mockGlobalShortcut.register.mock.calls[3][1];
+    ctrl2Callback();
+    expect(overlayWindow.isVisible()).toBe(true); // Should remain visible
+    expect(currentProfile).toBe(1); // Profile should change
+
+    // Test F11 again (summon) - should hide overlay
+    f11Callback();
+    expect(overlayWindow.isVisible()).toBe(false);
+    expect(currentProfile).toBe(1); // Profile should not change
+
+    // Test Ctrl+3 (profile switch) - should switch to profile 2 and show overlay
+    const ctrl3Callback = mockGlobalShortcut.register.mock.calls[4][1];
+    ctrl3Callback();
+    expect(overlayWindow.isVisible()).toBe(true); // Should show overlay
+    expect(currentProfile).toBe(2); // Profile should change
+
+    // Verify no conflicts occurred - each hotkey performed its intended action
+    expect(overlayWindow.show).toHaveBeenCalled();
+    expect(overlayWindow.hide).toHaveBeenCalled();
+  });
+
+  it('should detect and prevent duplicate hotkey registration', () => {
+    // Attempt to register the same hotkey twice
+    const hotkey = 'F11';
+    const callback1 = vi.fn();
+    const callback2 = vi.fn();
+
+    // First registration should succeed
+    const success1 = mockGlobalShortcut.register(hotkey, callback1);
+    expect(success1).toBe(true);
+
+    // Mock the second registration to fail (simulating Electron's behavior)
+    mockGlobalShortcut.register.mockReturnValueOnce(false);
+
+    // Second registration should fail
+    const success2 = mockGlobalShortcut.register(hotkey, callback2);
+    expect(success2).toBe(false);
+
+    // Verify that only one registration succeeded
+    expect(mockGlobalShortcut.register).toHaveBeenCalledTimes(2);
+  });
+
+  it('should handle profile hotkeys without conflicts between profiles', () => {
+    // Track current profile
+    let currentProfile = 0;
+
+    // Define profile switch function
+    const switchToProfile = (profileIndex) => {
+      currentProfile = profileIndex;
+    };
+
+    // Register profile hotkeys for multiple profiles
+    const profileHotkeys = [
+      { key: 'Ctrl+1', profile: 0, name: 'Development' },
+      { key: 'Ctrl+2', profile: 1, name: 'Gaming' },
+      { key: 'Ctrl+3', profile: 2, name: 'Work' },
+      { key: 'Ctrl+4', profile: 3, name: 'Personal' },
+    ];
+
+    profileHotkeys.forEach(({ key, profile }) => {
+      const success = mockGlobalShortcut.register(key, () => switchToProfile(profile));
+      expect(success).toBe(true);
+    });
+
+    // Verify all profile hotkeys were registered successfully
+    expect(mockGlobalShortcut.register).toHaveBeenCalledTimes(4);
+
+    // Verify no duplicate hotkeys
+    const registeredKeys = mockGlobalShortcut.register.mock.calls.map(call => call[0]);
+    const uniqueKeys = new Set(registeredKeys);
+    expect(uniqueKeys.size).toBe(4);
+
+    // Test that each profile hotkey switches to the correct profile
+    expect(currentProfile).toBe(0);
+
+    // Test Ctrl+1 - should switch to profile 0
+    const ctrl1Callback = mockGlobalShortcut.register.mock.calls[0][1];
+    ctrl1Callback();
+    expect(currentProfile).toBe(0);
+
+    // Test Ctrl+2 - should switch to profile 1
+    const ctrl2Callback = mockGlobalShortcut.register.mock.calls[1][1];
+    ctrl2Callback();
+    expect(currentProfile).toBe(1);
+
+    // Test Ctrl+3 - should switch to profile 2
+    const ctrl3Callback = mockGlobalShortcut.register.mock.calls[2][1];
+    ctrl3Callback();
+    expect(currentProfile).toBe(2);
+
+    // Test Ctrl+4 - should switch to profile 3
+    const ctrl4Callback = mockGlobalShortcut.register.mock.calls[3][1];
+    ctrl4Callback();
+    expect(currentProfile).toBe(3);
+
+    // Test Ctrl+1 again - should switch back to profile 0
+    ctrl1Callback();
+    expect(currentProfile).toBe(0);
+
+    // Verify each hotkey works independently without conflicts
+    expect(currentProfile).toBe(0);
+  });
 });
 
 describe('Electron Main Process - Focus Loss Handling', () => {

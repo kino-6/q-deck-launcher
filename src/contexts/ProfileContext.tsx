@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { tauriAPI, ProfileInfo, PageInfo, NavigationContext } from '../lib/platform-api';
 
+/**
+ * @deprecated This context is deprecated. Use the Zustand store from '../store/profileStore' instead.
+ * This context will be removed in a future version.
+ * 
+ * Migration guide:
+ * - Replace `useProfile()` with `useProfileStore()` from '../store/profileStore'
+ * - Use selectors for optimized re-renders: `useProfileStore(selectCurrentProfile)`
+ * - Remove `<ProfileProvider>` wrapper from your component tree
+ */
 interface ProfileContextType {
   profiles: ProfileInfo[];
   currentProfile: ProfileInfo | null;
@@ -24,11 +33,23 @@ interface ProfileContextType {
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
+/**
+ * @deprecated Use `useProfileStore()` from '../store/profileStore' instead
+ */
 export const useProfile = () => {
   const context = useContext(ProfileContext);
   if (context === undefined) {
     throw new Error('useProfile must be used within a ProfileProvider');
   }
+  
+  // Log deprecation warning in development
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(
+      'useProfile() is deprecated. Please migrate to useProfileStore() from "../store/profileStore".\n' +
+      'See ProfileContext.tsx for migration guide.'
+    );
+  }
+  
   return context;
 };
 
@@ -196,22 +217,17 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
 
   // Set up event listeners
   useEffect(() => {
-    let unlistenProfileChanged: (() => void) | undefined;
-
-    const setupEventListeners = async () => {
+    const setupEventListeners = () => {
       try {
-        // TODO: Implement event listeners for Electron
         // Listen for profile changes from hotkeys
-        // This is currently disabled as it requires Tauri-specific imports
-        // unlistenProfileChanged = await listen('profile-changed', (event) => {
-        //   console.log('Profile changed event received:', event.payload);
-        //   const profileInfo = event.payload as ProfileInfo;
-        //   setCurrentProfile(profileInfo);
-        //   
-        //   // Refresh related data
-        //   refreshCurrentPage();
-        //   refreshNavigationContext();
-        // });
+        tauriAPI.onProfileChanged((profileInfo: ProfileInfo) => {
+          console.log('Profile changed event received:', profileInfo);
+          setCurrentProfile(profileInfo);
+          
+          // Refresh related data
+          refreshCurrentPage();
+          refreshNavigationContext();
+        });
       } catch (err) {
         console.error('Failed to set up event listeners:', err);
       }
@@ -219,11 +235,8 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
 
     setupEventListeners();
 
-    return () => {
-      if (unlistenProfileChanged) {
-        unlistenProfileChanged();
-      }
-    };
+    // Note: Electron IPC listeners don't return cleanup functions
+    // They are automatically cleaned up when the window is closed
   }, []);
 
   // Load initial data on mount
