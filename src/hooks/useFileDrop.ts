@@ -107,7 +107,11 @@ export const useFileDrop = ({
         const actionType = isExecutable ? 'LaunchApp' : 'Open';
         
         // Create button label (filename without extension)
-        const buttonLabel = fileName.replace(/\.[^/.]+$/, '');
+        // Special handling for dot files (e.g., .gitignore, .env)
+        // If filename starts with dot and has no other dots, keep the full name
+        const buttonLabel = fileName.startsWith('.') && fileName.lastIndexOf('.') === 0
+          ? fileName  // Keep full name for dot files like .gitignore
+          : fileName.replace(/\.[^/.]+$/, '');  // Remove extension for normal files
 
         // Extract icon from executable if it's an .exe file
         let iconPath: string | undefined = undefined;
