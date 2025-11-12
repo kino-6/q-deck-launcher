@@ -276,13 +276,15 @@ function createOverlayWindow() {
     resizable: false,
     backgroundColor: '#00000000', // Fully transparent background
     hasShadow: false, // Disable shadow for better performance
+    paintWhenInitiallyHidden: false, // Don't paint when hidden
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.cjs'),
       webSecurity: true,
       enableRemoteModule: false,
-      offscreen: false // Ensure on-screen rendering
+      offscreen: false, // Ensure on-screen rendering
+      backgroundThrottling: false // Prevent throttling when hidden
     }
   });
   
@@ -304,6 +306,13 @@ function createOverlayWindow() {
       hash: '/overlay'
     });
   }
+
+  // Use ready-to-show event to prevent flicker
+  overlayWindow.once('ready-to-show', () => {
+    log('Overlay window ready to show');
+    // Window is now ready but we don't show it automatically
+    // It will be shown when showOverlay() is called
+  });
 
   overlayWindow.webContents.on('did-finish-load', () => {
     log('Overlay page loaded successfully');
@@ -360,10 +369,21 @@ function showOverlay() {
   
   if (overlayWindow) {
     log('Showing overlay window...');
-    // Use showInactive first to prevent flicker, then focus
-    overlayWindow.showInactive();
-    overlayWindow.setAlwaysOnTop(true, 'screen-saver');
-    overlayWindow.focus();
+    // Optimize show sequence to prevent flicker
+    // 1. Ensure window is ready before showing
+    if (overlayWindow.webContents.isLoading()) {
+      log('Window still loading, waiting for ready-to-show...');
+      overlayWindow.once('ready-to-show', () => {
+        overlayWindow.show();
+        overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+        overlayWindow.focus();
+      });
+    } else {
+      // Window is already loaded, show immediately
+      overlayWindow.show();
+      overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+      overlayWindow.focus();
+    }
     log('Overlay window shown and focused');
   } else {
     error('Failed to create overlay window');
