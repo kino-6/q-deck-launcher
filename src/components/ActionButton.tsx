@@ -33,7 +33,8 @@ export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, d
     const availableWidth = buttonRect.width - 16; // Account for padding
 
     // Calculate base font sizes based on DPI and screen info
-    const baseLabelSize = 0.75 * Math.min(dpiScale, 1.6) * (screenInfo ? getScreenScaleFactor(screenInfo) : 1);
+    // Increased from 0.75 to 1.0 for better readability
+    const baseLabelSize = 1.0 * Math.min(dpiScale, 1.6) * (screenInfo ? getScreenScaleFactor(screenInfo) : 1);
 
     // Adjust label font size
     const labelText = button.label;

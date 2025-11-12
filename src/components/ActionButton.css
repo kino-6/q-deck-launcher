@@ -103,7 +103,8 @@
 /* Button Label */
 .button-label {
   grid-area: label;
-  font-size: var(--dynamic-label-size, 0.65rem);
+  /* Increased from 0.65rem to 0.85rem for better readability */
+  font-size: var(--dynamic-label-size, 0.85rem);
   font-weight: 500;
   line-height: 1.1;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -270,7 +271,8 @@
 
 .button-label {
   /* Use dynamic size if available, otherwise fallback to calculated size */
-  font-size: var(--dynamic-label-size, calc(0.75rem * min(var(--effective-dpi, 1), 1.6) * var(--font-scale-modifier, 1)));
+  /* Increased from 0.75rem to 1.0rem for better readability */
+  font-size: var(--dynamic-label-size, calc(1.0rem * min(var(--effective-dpi, 1), 1.6) * var(--font-scale-modifier, 1)));
   /* Better text rendering on high DPI */
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
