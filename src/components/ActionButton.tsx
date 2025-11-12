@@ -225,6 +225,23 @@ export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, d
 
     // Fallback to original icon if processing failed or is in progress
     if (button.icon && !iconError) {
+      // Check if it's a data URL (base64 encoded image)
+      if (button.icon.startsWith('data:')) {
+        return (
+          <img 
+            src={button.icon} 
+            alt={button.label}
+            className="button-icon-image"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+            }}
+            onError={() => setIconError('Failed to load data URL icon')}
+          />
+        );
+      }
+      
       // Check if it's a simple emoji or text icon
       if (button.icon.length <= 4) { // Likely an emoji
         return button.icon;
