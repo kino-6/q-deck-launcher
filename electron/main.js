@@ -277,6 +277,7 @@ function createOverlayWindow() {
     backgroundColor: '#00000000', // Fully transparent background
     hasShadow: false, // Disable shadow for better performance
     paintWhenInitiallyHidden: false, // Don't paint when hidden
+    roundedCorners: false, // Disable rounded corners on Windows 11
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -284,7 +285,8 @@ function createOverlayWindow() {
       webSecurity: true,
       enableRemoteModule: false,
       offscreen: false, // Ensure on-screen rendering
-      backgroundThrottling: false // Prevent throttling when hidden
+      backgroundThrottling: false, // Prevent throttling when hidden
+      disableHardwareAcceleration: false // Keep hardware acceleration enabled
     }
   });
   
@@ -374,15 +376,26 @@ function showOverlay() {
     if (overlayWindow.webContents.isLoading()) {
       log('Window still loading, waiting for ready-to-show...');
       overlayWindow.once('ready-to-show', () => {
+        // Use setOpacity to fade in (reduces flicker on Windows)
+        overlayWindow.setOpacity(0);
         overlayWindow.show();
         overlayWindow.setAlwaysOnTop(true, 'screen-saver');
         overlayWindow.focus();
+        // Quick fade in
+        setTimeout(() => {
+          if (overlayWindow) overlayWindow.setOpacity(1);
+        }, 16); // One frame at 60fps
       });
     } else {
-      // Window is already loaded, show immediately
+      // Window is already loaded, show with quick fade
+      overlayWindow.setOpacity(0);
       overlayWindow.show();
       overlayWindow.setAlwaysOnTop(true, 'screen-saver');
       overlayWindow.focus();
+      // Quick fade in
+      setTimeout(() => {
+        if (overlayWindow) overlayWindow.setOpacity(1);
+      }, 16); // One frame at 60fps
     }
     log('Overlay window shown and focused');
   } else {
@@ -393,8 +406,15 @@ function showOverlay() {
 // Hide overlay
 function hideOverlay() {
   if (overlayWindow && overlayWindow.isVisible()) {
-    // Quick hide without animation
-    overlayWindow.hide();
+    // Quick fade out before hiding (reduces flicker)
+    overlayWindow.setOpacity(0);
+    setTimeout(() => {
+      if (overlayWindow && overlayWindow.isVisible()) {
+        overlayWindow.hide();
+        // Reset opacity for next show
+        overlayWindow.setOpacity(1);
+      }
+    }, 16); // One frame at 60fps
   }
 }
 
