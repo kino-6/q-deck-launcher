@@ -113,19 +113,29 @@ export const useFileDrop = ({
           ? fileName  // Keep full name for dot files like .gitignore
           : fileName.replace(/\.[^/.]+$/, '');  // Remove extension for normal files
 
-        // Extract icon from executable if it's an .exe file
+        // Extract icon from file
         let iconPath: string | undefined = undefined;
-        if (isExecutable) {
-          try {
+        try {
+          if (isExecutable) {
+            // For executables, use the existing extraction method
             const iconInfo = await tauriAPI.extractExecutableIcon(filePath);
             
             if (iconInfo && iconInfo.path) {
               iconPath = iconInfo.path;
-              logger.log('Icon extracted successfully');
+              logger.log('Executable icon extracted successfully');
             }
-          } catch (error) {
-            logger.error('Failed to extract icon:', error);
+          } else {
+            // For all other files, extract file type icon
+            const iconInfo = await tauriAPI.extractFileIcon(filePath);
+            
+            if (iconInfo && (iconInfo.data_url || iconInfo.path)) {
+              // Store the data URL or path
+              iconPath = iconInfo.data_url || iconInfo.path;
+              logger.log('File icon extracted successfully');
+            }
           }
+        } catch (error) {
+          logger.error('Failed to extract icon:', error);
         }
 
         // Create button with proper structure

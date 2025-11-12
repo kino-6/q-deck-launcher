@@ -76,6 +76,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Icon extraction
   extractIcon: (exePath) => ipcRenderer.invoke('extract-icon', exePath),
   getIconPath: (relativePath) => ipcRenderer.invoke('get-icon-path', relativePath),
+  extractFileIcon: (filePath) => ipcRenderer.invoke('extract-file-icon', filePath),
   
   // Platform info
   platform: process.platform,

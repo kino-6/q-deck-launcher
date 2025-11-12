@@ -72,15 +72,60 @@ export function createSendFilePathsHandler() {
 }
 
 /**
+ * Create extract-file-icon handler
+ * Extracts icon for any file type using Windows Shell API
+ * 
+ * @param {Object} app - Electron app instance
+ * @returns {Function} IPC handler function
+ */
+export function createExtractFileIconHandler(app) {
+  return async (event, filePath) => {
+    log('IPC: extract-file-icon called for:', filePath);
+    
+    try {
+      // Use Electron's app.getFileIcon to extract icon for any file type
+      const icon = await app.getFileIcon(filePath, { size: 'large' });
+      
+      if (!icon || icon.isEmpty()) {
+        log('No icon found for file:', filePath);
+        return {
+          success: false,
+          message: 'No icon found'
+        };
+      }
+
+      // Convert to PNG data URL
+      const pngBuffer = icon.toPNG();
+      const dataUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+      
+      log('Icon extracted successfully for:', filePath);
+      return {
+        success: true,
+        dataUrl: dataUrl,
+        iconType: 'file'
+      };
+    } catch (err) {
+      error('IPC: extract-file-icon failed:', err);
+      return {
+        success: false,
+        message: err.message
+      };
+    }
+  };
+}
+
+/**
  * Register all utility-related IPC handlers
  * 
  * @param {Electron.IpcMain} ipcMain - Electron IPC main instance
  * @param {Object} utilityManager - Utility manager object with methods
+ * @param {Object} app - Electron app instance
  */
-export function registerUtilityHandlers(ipcMain, utilityManager) {
+export function registerUtilityHandlers(ipcMain, utilityManager, app) {
   ipcMain.handle('extract-icon', createExtractIconHandler(utilityManager.extractIcon));
   ipcMain.handle('get-icon-path', createGetIconPathHandler(utilityManager.getIconPath));
   ipcMain.handle('send-file-paths', createSendFilePathsHandler());
+  ipcMain.handle('extract-file-icon', createExtractFileIconHandler(app));
   
   log('Utility IPC handlers registered');
 }

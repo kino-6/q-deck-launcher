@@ -261,6 +261,16 @@ export const platformAPI = {
     throw new Error('No platform API available');
   },
 
+  extractFileIcon: async (filePath: string): Promise<{ success: boolean; dataUrl?: string; message?: string }> => {
+    if (isElectron()) {
+      return window.electronAPI!.extractFileIcon(filePath);
+    } else if (isTauri()) {
+      // Tauri implementation would go here
+      return { success: false, message: 'File icon extraction not implemented for Tauri' };
+    }
+    throw new Error('No platform API available');
+  },
+
   getIconPath: async (relativePath: string) => {
     if (isElectron()) {
       return window.electronAPI!.getIconPath(relativePath);

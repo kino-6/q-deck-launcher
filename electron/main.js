@@ -584,7 +584,8 @@ registerAllHandlers(ipcMain, {
     extractIcon: extractIconFromExe,
     getIconPath: (relativePath) => path.join(app.getPath('userData'), relativePath)
   },
-  profileStateManager
+  profileStateManager,
+  app // Pass app instance for file icon extraction
 });
 
 log('Electron main process started');

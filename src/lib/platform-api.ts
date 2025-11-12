@@ -267,6 +267,31 @@ export const tauriAPI = {
       };
     }
   },
+  extractFileIcon: async (filePath: string): Promise<IconInfo> => {
+    try {
+      const result = await platformAPI.extractFileIcon(filePath);
+      
+      if (result.success && result.dataUrl) {
+        return {
+          path: '',
+          icon_type: 'Base64',
+          data_url: result.dataUrl
+        };
+      } else {
+        // Return empty icon info if extraction failed
+        return {
+          path: '',
+          icon_type: 'File'
+        };
+      }
+    } catch (error) {
+      logger.error('Failed to extract file icon:', error);
+      return {
+        path: '',
+        icon_type: 'File'
+      };
+    }
+  },
   getIconCacheStats: async () => ({} as CacheStats),
   clearIconCache: async () => {},
   

@@ -14,6 +14,15 @@ export interface IconExtractionResult {
 }
 
 /**
+ * File icon extraction result (for any file type)
+ */
+export interface FileIconExtractionResult {
+  success: boolean;
+  dataUrl?: string;
+  message?: string;
+}
+
+/**
  * Electron API interface
  * Provides type-safe access to Electron main process functionality
  */
@@ -128,6 +137,11 @@ export interface ElectronAPI {
    * Extract icon from executable file
    */
   extractIcon: (exePath: string) => Promise<IconExtractionResult>;
+  
+  /**
+   * Extract icon from any file type (uses Windows Shell API)
+   */
+  extractFileIcon: (filePath: string) => Promise<FileIconExtractionResult>;
   
   /**
    * Get full path to cached icon
