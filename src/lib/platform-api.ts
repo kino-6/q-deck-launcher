@@ -163,6 +163,15 @@ export const tauriAPI = {
   
   // Icon processing - enhanced for PNG, ICO, SVG support
   processIcon: async (iconPath: string, fallbackPath?: string): Promise<IconInfo> => {
+    // Check if it's a data URL (base64 encoded image)
+    if (iconPath.startsWith('data:')) {
+      return {
+        path: '',
+        icon_type: 'Base64',
+        data_url: iconPath
+      };
+    }
+    
     // Check if it's an emoji (short string, no file extension, no path separators)
     if (iconPath.length <= 4 && !iconPath.includes('.') && !iconPath.includes('/') && !iconPath.includes('\\')) {
       return {

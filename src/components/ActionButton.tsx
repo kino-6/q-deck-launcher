@@ -174,14 +174,33 @@ export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, d
                   height: '100%',
                   objectFit: 'contain',
                 }}
-                onError={() => {
-                  console.warn('Failed to load processed icon image');
+                onError={(e) => {
+                  console.error('Failed to load processed icon image:', processedIcon.data_url?.substring(0, 50));
                   setIconError('Failed to load icon image');
                 }}
               />
             );
           } else if (processedIcon.path) {
-            // For extracted icons, use file:// protocol
+            // Check if path is a data URL - if so, use it directly
+            if (processedIcon.path.startsWith('data:')) {
+              return (
+                <img 
+                  src={processedIcon.path} 
+                  alt={button.label}
+                  className="button-icon-image"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                  }}
+                  onError={(e) => {
+                    console.error('Failed to load data URL from path:', processedIcon.path?.substring(0, 50));
+                    setIconError('Failed to load icon image');
+                  }}
+                />
+              );
+            }
+            // For file paths, use file:// protocol
             const iconSrc = processedIcon.path.startsWith('file://') 
               ? processedIcon.path 
               : `file://${processedIcon.path}`;
@@ -195,8 +214,8 @@ export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, d
                   height: '100%',
                   objectFit: 'contain',
                 }}
-                onError={() => {
-                  console.warn('Failed to load extracted icon:', iconSrc);
+                onError={(e) => {
+                  console.error('Failed to load extracted icon:', iconSrc);
                   setIconError('Failed to load icon image');
                 }}
               />
@@ -214,8 +233,8 @@ export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, d
                 height: '100%',
                 objectFit: 'contain',
               }}
-              onError={() => {
-                console.warn('Failed to load URL icon');
+              onError={(e) => {
+                console.error('Failed to load URL icon:', processedIcon.path);
                 setIconError('Failed to load URL icon');
               }}
             />
