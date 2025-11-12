@@ -101,22 +101,43 @@ profiles:
 
 ```
 q-deck-launcher/
-├── src/                    # React frontend
-│   ├── components/         # UI components
+├── src/                    # React frontend source code
+│   ├── components/         # UI components (Grid, ButtonEditModal, etc.)
+│   ├── hooks/             # Custom React hooks
 │   ├── lib/               # Utilities and API wrappers
-│   └── App.tsx            # Main application
-├── src-tauri/             # Rust backend
-│   └── src/
-│       ├── modules/       # Feature modules
-│       │   ├── config.rs  # Configuration management
-│       │   ├── hotkey.rs  # Hotkey system
-│       │   ├── logger.rs  # Logging system
-│       │   └── ...
-│       └── lib.rs         # Main library
-├── launch.bat             # Windows development launcher
-├── launch.ps1             # PowerShell development launcher
-└── build.bat              # Production build script
+│   ├── store/             # State management (Zustand stores)
+│   ├── styles/            # CSS and theme files
+│   ├── types/             # TypeScript type definitions
+│   └── utils/             # Utility functions
+├── electron/              # Electron main process
+│   ├── actions/           # Action executors (LaunchApp, Terminal, etc.)
+│   ├── ipc/               # IPC handlers
+│   ├── main.js            # Main process entry point
+│   ├── preload.cjs        # Preload script
+│   └── ProfileStateManager.js  # Profile state management
+├── scripts/               # Build and utility scripts
+│   └── test/              # Test scripts (PowerShell)
+├── docs/                  # Documentation and implementation notes
+├── test-files/            # Test assets (images, icons, etc.)
+├── public/                # Static assets
+├── dist/                  # Built frontend (generated)
+├── release/               # Built Electron app (generated)
+├── .kiro/                 # Kiro specs and configuration
+│   └── specs/q-deck-launcher/  # Feature specs and tasks
+├── launch.ps1             # Development launcher (recommended)
+├── build.bat              # Production build script
+├── package.json           # Node.js dependencies
+├── vite.config.ts         # Vite configuration
+└── README.md              # This file
 ```
+
+### Key Directories
+
+- **`src/`**: React frontend with TypeScript
+- **`electron/`**: Electron main process and IPC handlers
+- **`scripts/test/`**: PowerShell test scripts for manual testing
+- **`docs/`**: Implementation notes, task summaries, and guides
+- **`.kiro/specs/`**: Feature specifications and task lists
 
 ### Available Scripts
 
@@ -181,10 +202,15 @@ The launcher supports various action types:
 
 ## Documentation
 
-- **`HOW_TO_RUN.md`** - 起動方法の完全ガイド
-- **`QUICK_USER_TEST.md`** - ユーザ操作テストシナリオ
-- **`REFACTORING_PLAN.md`** - コードリファクタリング計画
+All documentation has been organized in the `docs/` directory:
+
+- **`docs/HOW_TO_RUN.md`** - 起動方法の完全ガイド
+- **`docs/QUICK_USER_TEST.md`** - ユーザ操作テストシナリオ
+- **`docs/REFACTORING_PLAN.md`** - コードリファクタリング計画
+- **`docs/TASK_*.md`** - 各機能の実装ドキュメント
 - **`.kiro/specs/q-deck-launcher/`** - 機能仕様とタスク
+
+Test scripts are located in `scripts/test/`.
 
 ## Troubleshooting
 
