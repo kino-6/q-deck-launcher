@@ -54,6 +54,7 @@ export interface WindowConfig {
   opacity: number;
   theme: ThemeName;
   animation: AnimationConfig;
+  auto_close_on_open?: boolean;
   monitor_preference?: MonitorPreference;
   dpi_awareness?: DPIAwareness;
   responsive_scaling?: ResponsiveScaling;

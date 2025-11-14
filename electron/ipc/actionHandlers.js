@@ -31,9 +31,12 @@ export function createExecuteActionHandler(actionExecutor) {
       // Execute the action
       const result = await actionExecutor.execute(actionConfig);
       
+      // Add action type to result for detection
+      result.actionType = actionConfig.type;
+      
       // Log result
       if (result.success) {
-        log('Action executed successfully:', result.message);
+        log('Action executed successfully:', result.message, 'Type:', result.actionType);
       } else {
         error('Action execution failed:', result.message);
       }

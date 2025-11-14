@@ -15,8 +15,10 @@ import { useContextMenu } from '../hooks/useContextMenu';
 import { useButtonOperations } from '../hooks/useButtonOperations';
 import { useThemeSelector } from '../hooks/useThemeSelector';
 import { usePageNavigation } from '../hooks/usePageNavigation';
+import { useButtonShortcuts } from '../hooks/useButtonShortcuts';
 import { createGridCells } from '../utils/gridCalculations';
 import { handleSystemAction as handleSystemActionUtil, handleTestClick } from '../utils/configOperations';
+import { tauriAPI } from '../lib/platform-api';
 import './Grid.css';
 
 interface GridProps {
@@ -145,6 +147,53 @@ export const Grid: React.FC<GridProps> = ({ config, currentProfile, currentPage,
   // Memoize grid cells to avoid recalculation on every render
   const gridCells = React.useMemo(() => createGridCells(page), [page]);
 
+  // Get all non-empty buttons in reading order for shortcuts
+  const buttonsInReadingOrder = React.useMemo(() => {
+    return gridCells
+      .filter(cell => cell.button !== null)
+      .map(cell => cell.button!);
+  }, [gridCells]);
+
+  // Handle button click via shortcut
+  const handleButtonShortcutClick = useCallback(async (button: any) => {
+    try {
+      console.log('Button shortcut triggered:', button.label);
+      
+      // Handle system actions
+      if (button.action?.action_type === 'system' && button.action.system_action) {
+        handleSystemAction(button.action.system_action);
+        return;
+      }
+      
+      // Execute the action
+      const actionConfig = {
+        type: button.action_type,
+        label: button.label,
+        ...button.config
+      };
+      const result = await tauriAPI.executeAction(actionConfig);
+      
+      // Detect Open action execution for auto-close behavior
+      if (result && result.success && result.actionType === 'Open') {
+        window.dispatchEvent(new CustomEvent('open-action-executed', { 
+          detail: { 
+            actionType: result.actionType,
+            label: button.label 
+          } 
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to execute action via shortcut:', err);
+    }
+  }, [handleSystemAction]);
+
+  // Enable button shortcuts (1-9, 0 for first 10 buttons)
+  const { getButtonShortcut } = useButtonShortcuts({
+    buttons: buttonsInReadingOrder,
+    onButtonClick: handleButtonShortcutClick,
+    enabled: !showConfig, // Disable shortcuts when config modal is open
+  });
+
   return (
     <GridDragDrop
       config={config}
@@ -177,6 +226,7 @@ export const Grid: React.FC<GridProps> = ({ config, currentProfile, currentPage,
             {gridCells.map(({ index, row, col, button }) => {
               const isDragOver = dragState.dragOverPosition?.row === row && dragState.dragOverPosition?.col === col;
               const isDropTarget = isDragOver;
+              const shortcutNumber = button ? getButtonShortcut(button) : null;
               
               return (
                 <GridCell
@@ -189,6 +239,7 @@ export const Grid: React.FC<GridProps> = ({ config, currentProfile, currentPage,
                   isDropTarget={isDropTarget}
                   dpiScale={dpiScale}
                   screenInfo={screenInfo}
+                  shortcutNumber={shortcutNumber}
                   onSystemAction={handleSystemAction}
                   onContextMenu={handleContextMenu}
                   onEmptyCellContextMenu={handleEmptyCellContextMenu}

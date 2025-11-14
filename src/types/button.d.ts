@@ -145,6 +145,7 @@ export interface ActionResult {
   execution_time_ms: number;
   output?: string;
   error_code?: number;
+  actionType?: string; // Type of action executed (for auto-close detection)
 }
 
 /**

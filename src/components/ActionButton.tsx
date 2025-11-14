@@ -13,11 +13,12 @@ interface ActionButtonProps {
     availHeight: number;
     pixelRatio: number;
   };
+  shortcutNumber?: string | null;
   onSystemAction?: (action: string) => void;
   onContextMenu?: (event: React.MouseEvent, button: ActionButtonType) => void;
 }
 
-export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, dpiScale = 1, screenInfo, onSystemAction, onContextMenu }) => {
+export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, dpiScale = 1, screenInfo, shortcutNumber, onSystemAction, onContextMenu }) => {
   const [processedIcon, setProcessedIcon] = useState<IconInfo | null>(null);
   const [iconError, setIconError] = useState<string | null>(null);
   const [labelFontSize, setLabelFontSize] = useState<number | null>(null);
@@ -148,7 +149,19 @@ export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, d
         label: button.label,
         ...button.config
       };
-      await tauriAPI.executeAction(actionConfig);
+      const result = await tauriAPI.executeAction(actionConfig);
+      
+      // Detect Open action execution for auto-close behavior
+      if (result && result.success && result.actionType === 'Open') {
+        console.log('Open action detected - action type:', result.actionType);
+        // Emit custom event for Open action detection
+        window.dispatchEvent(new CustomEvent('open-action-executed', { 
+          detail: { 
+            actionType: result.actionType,
+            label: button.label 
+          } 
+        }));
+      }
     } catch (err) {
       console.error('Failed to execute action:', err);
     }
@@ -532,6 +545,14 @@ export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, d
       data-system-action={button.action?.action_type === 'system' ? button.action.system_action : undefined}
       data-label-length={labelLengthCategory}
     >
+      {shortcutNumber && (
+        <div 
+          className="button-shortcut-badge"
+          data-shift={shortcutNumber.startsWith('⇧') ? 'true' : 'false'}
+        >
+          {shortcutNumber}
+        </div>
+      )}
       <div className="button-icon">
         {actionIcon}
       </div>
@@ -551,6 +572,7 @@ export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, d
     prevProps.button === nextProps.button &&
     prevProps.dpiScale === nextProps.dpiScale &&
     prevProps.screenInfo === nextProps.screenInfo &&
+    prevProps.shortcutNumber === nextProps.shortcutNumber &&
     prevProps.onSystemAction === nextProps.onSystemAction &&
     prevProps.onContextMenu === nextProps.onContextMenu
   );

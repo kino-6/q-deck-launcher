@@ -28,27 +28,96 @@ function Overlay() {
     loadConfig();
   }, []);
 
+  // Listen for Open action execution to auto-close overlay
+  useEffect(() => {
+    const handleOpenActionExecuted = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      logger.info('Open action executed, detected in Overlay:', customEvent.detail);
+      console.log('Open action executed - will auto-close overlay:', customEvent.detail);
+      
+      // Check if auto-close is enabled in config (default: true)
+      const autoCloseEnabled = config?.ui?.window?.auto_close_on_open !== false;
+      
+      if (autoCloseEnabled) {
+        // Auto-close overlay after Open action
+        // Add a small delay to ensure the action completes
+        setTimeout(async () => {
+          await handleHideOverlay();
+        }, 100);
+      } else {
+        console.log('Auto-close disabled in config - overlay will remain open');
+      }
+    };
+
+    window.addEventListener('open-action-executed', handleOpenActionExecuted);
+    
+    return () => {
+      window.removeEventListener('open-action-executed', handleOpenActionExecuted);
+    };
+  }, [config]); // Add config to dependency array
+
   // Separate effect for keyboard handlers to ensure proper cleanup
   useEffect(() => {
     const handleKeyDown = async (event: KeyboardEvent) => {
-      // Don't handle Escape if a modal is open
-      if (event.key === 'Escape' && !isModalOpen) {
+      // Don't handle any shortcuts if a modal is open
+      if (isModalOpen) {
+        return;
+      }
+
+      // Handle Escape key
+      if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
         // Use platform-specific API to hide overlay
         await tauriAPI.hideOverlay();
-      } else if (event.key === 'ArrowLeft' && navigationContext?.has_previous_page && !isModalOpen) {
+        return;
+      }
+
+      // Handle navigation keys
+      if (event.key === 'ArrowLeft' && navigationContext?.has_previous_page) {
         event.preventDefault();
         await previousPage();
-      } else if (event.key === 'ArrowRight' && navigationContext?.has_next_page && !isModalOpen) {
+        return;
+      }
+      
+      if (event.key === 'ArrowRight' && navigationContext?.has_next_page) {
         event.preventDefault();
         await nextPage();
-      } else if (event.key === 'PageUp' && navigationContext?.has_previous_page && !isModalOpen) {
+        return;
+      }
+      
+      if (event.key === 'PageUp' && navigationContext?.has_previous_page) {
         event.preventDefault();
         await previousPage();
-      } else if (event.key === 'PageDown' && navigationContext?.has_next_page && !isModalOpen) {
+        return;
+      }
+      
+      if (event.key === 'PageDown' && navigationContext?.has_next_page) {
         event.preventDefault();
         await nextPage();
+        return;
+      }
+
+      // Handle number key shortcuts (1-9, 0) for first 10 buttons
+      // With Shift modifier: Shift+1-9, Shift+0 for buttons 11-20
+      // Map: 1->0, 2->1, ..., 9->8, 0->9
+      const numberKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+      const keyIndex = numberKeys.indexOf(event.key);
+      
+      if (keyIndex !== -1) {
+        event.preventDefault();
+        
+        // Calculate button index based on Shift modifier
+        let buttonIndex = keyIndex;
+        if (event.shiftKey) {
+          // Shift+1 -> button 10 (index 10), Shift+2 -> button 11 (index 11), etc.
+          buttonIndex = keyIndex + 10;
+        }
+        
+        // Dispatch custom event with button index
+        window.dispatchEvent(new CustomEvent('button-shortcut-pressed', { 
+          detail: { buttonIndex } 
+        }));
       }
     };
 

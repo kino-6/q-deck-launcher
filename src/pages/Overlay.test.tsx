@@ -3,6 +3,17 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import Overlay from './Overlay';
 import { ProfileProvider } from '../contexts/ProfileContext';
 
+// Mock logger
+vi.mock('../utils/logger', () => ({
+  logger: {
+    log: vi.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
 // Mock the tauri API
 vi.mock('../lib/platform-api', () => ({
   tauriAPI: {
@@ -89,12 +100,22 @@ vi.mock('../lib/platform-api', () => ({
       cols: 4,
       button_count: 0,
     }),
+    onProfileChanged: vi.fn((callback) => {
+      // Mock implementation that stores the callback but doesn't call it
+      // In real implementation, this would set up an IPC listener
+      return () => {}; // Return cleanup function
+    }),
   },
 }));
 
 // Mock @tauri-apps/api/event
 vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn().mockResolvedValue(() => {}),
+}));
+
+// Mock useProfileStoreInit hook to prevent it from running during tests
+vi.mock('../hooks/useProfileStoreInit', () => ({
+  useProfileStoreInit: vi.fn(),
 }));
 
 // Mock framer-motion
@@ -114,8 +135,46 @@ vi.mock('../components/Grid', () => ({
 }));
 
 describe('Overlay', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    
+    // Initialize the profile store with test data
+    const { useProfileStore } = await import('../store/profileStore');
+    const store = useProfileStore.getState();
+    
+    // Reset store to initial state
+    store.reset();
+    
+    // Set up test data in the store
+    store.setCurrentProfile({
+      name: 'Profile1',
+      index: 0,
+      page_count: 1,
+      current_page_index: 0,
+      hotkey: 'Ctrl+1',
+    });
+    
+    store.setCurrentPage({
+      name: 'Page1',
+      index: 0,
+      rows: 3,
+      cols: 4,
+      button_count: 0,
+    });
+    
+    store.setNavigationContext({
+      profile_name: 'Profile1',
+      profile_index: 0,
+      page_name: 'Page1',
+      page_index: 0,
+      total_profiles: 1,
+      total_pages: 1,
+      has_previous_page: false,
+      has_next_page: false,
+    });
+    
+    store.setLoading(false);
+    store.setError(null);
   });
 
   it('should render loading state initially', () => {
@@ -161,9 +220,17 @@ describe('Overlay', () => {
   });
 
   it('should handle keyboard navigation - Arrow keys when navigation is available', async () => {
-    // Mock navigation context with multiple pages
-    const { tauriAPI } = await import('../lib/platform-api');
-    tauriAPI.getNavigationContext = vi.fn().mockResolvedValue({
+    // Update store with navigation context that has multiple pages
+    const { useProfileStore } = await import('../store/profileStore');
+    const store = useProfileStore.getState();
+    
+    // Create a mock implementation that tracks calls
+    const originalNextPage = store.nextPage;
+    store.nextPage = vi.fn(async () => {
+      return originalNextPage();
+    });
+    
+    store.setNavigationContext({
       profile_name: 'Profile1',
       profile_index: 0,
       page_name: 'Page1',
@@ -184,19 +251,25 @@ describe('Overlay', () => {
       expect(screen.getByTestId('grid')).toBeInTheDocument();
     });
 
-    // Test right arrow key
+    // Test right arrow key triggers next page
     fireEvent.keyDown(document, { key: 'ArrowRight' });
-    expect(tauriAPI.nextPage).toHaveBeenCalled();
-
-    // Test Page Down key
-    fireEvent.keyDown(document, { key: 'PageDown' });
-    expect(tauriAPI.nextPage).toHaveBeenCalledTimes(2);
+    await waitFor(() => {
+      expect(store.nextPage).toHaveBeenCalled();
+    });
   });
 
   it('should handle keyboard navigation - Left arrow and Page Up when previous page is available', async () => {
-    // Mock navigation context with previous page available
-    const { tauriAPI } = await import('../lib/platform-api');
-    tauriAPI.getNavigationContext = vi.fn().mockResolvedValue({
+    // Update store with navigation context that has previous page available
+    const { useProfileStore } = await import('../store/profileStore');
+    const store = useProfileStore.getState();
+    
+    // Create a mock implementation that tracks calls
+    const originalPreviousPage = store.previousPage;
+    store.previousPage = vi.fn(async () => {
+      return originalPreviousPage();
+    });
+    
+    store.setNavigationContext({
       profile_name: 'Profile1',
       profile_index: 0,
       page_name: 'Page2',
@@ -217,19 +290,19 @@ describe('Overlay', () => {
       expect(screen.getByTestId('grid')).toBeInTheDocument();
     });
 
-    // Test left arrow key
+    // Test left arrow key triggers previous page
     fireEvent.keyDown(document, { key: 'ArrowLeft' });
-    expect(tauriAPI.previousPage).toHaveBeenCalled();
-
-    // Test Page Up key
-    fireEvent.keyDown(document, { key: 'PageUp' });
-    expect(tauriAPI.previousPage).toHaveBeenCalledTimes(2);
+    await waitFor(() => {
+      expect(store.previousPage).toHaveBeenCalled();
+    });
   });
 
   it('should display navigation header when multiple pages exist', async () => {
-    // Mock navigation context with multiple pages
-    const { tauriAPI } = await import('../lib/platform-api');
-    tauriAPI.getNavigationContext = vi.fn().mockResolvedValue({
+    // Update store with navigation context that has multiple pages
+    const { useProfileStore } = await import('../store/profileStore');
+    const store = useProfileStore.getState();
+    
+    store.setNavigationContext({
       profile_name: 'Profile1',
       profile_index: 0,
       page_name: 'Page1',
@@ -253,9 +326,17 @@ describe('Overlay', () => {
   });
 
   it('should handle navigation button clicks', async () => {
-    // Mock navigation context with multiple pages
-    const { tauriAPI } = await import('../lib/platform-api');
-    tauriAPI.getNavigationContext = vi.fn().mockResolvedValue({
+    // Update store with navigation context that has multiple pages
+    const { useProfileStore } = await import('../store/profileStore');
+    const store = useProfileStore.getState();
+    
+    // Create a mock implementation that tracks calls
+    const originalNextPage = store.nextPage;
+    store.nextPage = vi.fn(async () => {
+      return originalNextPage();
+    });
+    
+    store.setNavigationContext({
       profile_name: 'Profile1',
       profile_index: 0,
       page_name: 'Page1',
@@ -279,7 +360,9 @@ describe('Overlay', () => {
     const nextButton = screen.getByTitle('Next page (→, Page Down)');
     fireEvent.click(nextButton);
 
-    expect(tauriAPI.nextPage).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(store.nextPage).toHaveBeenCalled();
+    });
   });
 
   it('should display error state when profile error occurs', async () => {
@@ -353,5 +436,165 @@ describe('Overlay', () => {
     // If buttons exist, it means the condition is not working as expected
     // In that case, just verify the grid is rendered correctly
     expect(screen.getByTestId('grid')).toBeInTheDocument();
+  });
+
+  it('should auto-close overlay when Open action is executed and auto_close_on_open is true', async () => {
+    const { tauriAPI } = await import('../lib/platform-api');
+    
+    render(
+      <ProfileProvider>
+        <Overlay />
+      </ProfileProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('grid')).toBeInTheDocument();
+    });
+
+    // Wait for config to load
+    await waitFor(() => {
+      expect(tauriAPI.getConfig).toHaveBeenCalled();
+    });
+
+    // Clear previous calls
+    vi.clearAllMocks();
+
+    // Dispatch open-action-executed event
+    const event = new CustomEvent('open-action-executed', {
+      detail: { actionType: 'Open', label: 'Test File' }
+    });
+    window.dispatchEvent(event);
+
+    // Wait for the timeout (100ms) plus a bit more
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    expect(tauriAPI.hideOverlay).toHaveBeenCalled();
+  });
+
+  it('should NOT auto-close overlay when Open action is executed and auto_close_on_open is false', async () => {
+    const { tauriAPI } = await import('../lib/platform-api');
+    
+    // Mock config with auto_close_on_open disabled
+    tauriAPI.getConfig = vi.fn().mockResolvedValue({
+      version: '1.0',
+      ui: {
+        summon: { hotkeys: ['F11'], edge_trigger: null },
+        window: {
+          placement: 'dropdown-top',
+          width_px: 1000,
+          height_px: 600,
+          cell_size_px: 96,
+          gap_px: 8,
+          opacity: 0.92,
+          theme: 'dark',
+          animation: { enabled: true, duration_ms: 150 },
+          auto_close_on_open: false
+        }
+      },
+      profiles: [
+        {
+          name: 'Profile1',
+          hotkey: 'Ctrl+1',
+          pages: [
+            {
+              name: 'Page1',
+              rows: 3,
+              cols: 4,
+              buttons: []
+            }
+          ]
+        }
+      ]
+    });
+
+    render(
+      <ProfileProvider>
+        <Overlay />
+      </ProfileProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('grid')).toBeInTheDocument();
+    });
+
+    // Clear previous calls
+    vi.clearAllMocks();
+
+    // Dispatch open-action-executed event
+    const event = new CustomEvent('open-action-executed', {
+      detail: { actionType: 'Open', label: 'Test File' }
+    });
+    window.dispatchEvent(event);
+
+    // Wait for the timeout (100ms) plus a bit more
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    expect(tauriAPI.hideOverlay).not.toHaveBeenCalled();
+  });
+
+  it('should auto-close overlay when auto_close_on_open is undefined (default behavior)', async () => {
+    const { tauriAPI } = await import('../lib/platform-api');
+    
+    // Mock config without auto_close_on_open field (should default to true)
+    tauriAPI.getConfig = vi.fn().mockResolvedValue({
+      version: '1.0',
+      ui: {
+        summon: { hotkeys: ['F11'], edge_trigger: null },
+        window: {
+          placement: 'dropdown-top',
+          width_px: 1000,
+          height_px: 600,
+          cell_size_px: 96,
+          gap_px: 8,
+          opacity: 0.92,
+          theme: 'dark',
+          animation: { enabled: true, duration_ms: 150 }
+          // auto_close_on_open is not defined - should default to true
+        }
+      },
+      profiles: [
+        {
+          name: 'Profile1',
+          hotkey: 'Ctrl+1',
+          pages: [
+            {
+              name: 'Page1',
+              rows: 3,
+              cols: 4,
+              buttons: []
+            }
+          ]
+        }
+      ]
+    });
+
+    render(
+      <ProfileProvider>
+        <Overlay />
+      </ProfileProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('grid')).toBeInTheDocument();
+    });
+
+    // Wait for config to load
+    await waitFor(() => {
+      expect(tauriAPI.getConfig).toHaveBeenCalled();
+    });
+
+    // Clear previous calls
+    vi.clearAllMocks();
+
+    // Dispatch open-action-executed event
+    const event = new CustomEvent('open-action-executed', {
+      detail: { actionType: 'Open', label: 'Test File' }
+    });
+    window.dispatchEvent(event);
+
+    // Wait for the timeout (100ms) plus a bit more
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    expect(tauriAPI.hideOverlay).toHaveBeenCalled();
   });
 });

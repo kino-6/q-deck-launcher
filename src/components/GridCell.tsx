@@ -13,6 +13,7 @@ export interface GridCellProps {
   isDropTarget: boolean;
   dpiScale: number;
   screenInfo: ScreenInfo;
+  shortcutNumber?: string | null;
   onSystemAction?: (action: string) => void;
   onContextMenu: (event: React.MouseEvent, button: ActionButtonType) => void;
   onEmptyCellContextMenu: (event: React.MouseEvent, row: number, col: number) => void;
@@ -27,6 +28,7 @@ export const GridCell: React.FC<GridCellProps> = React.memo(({
   isDropTarget,
   dpiScale,
   screenInfo,
+  shortcutNumber,
   onSystemAction,
   onContextMenu,
   onEmptyCellContextMenu,
@@ -68,6 +70,7 @@ export const GridCell: React.FC<GridCellProps> = React.memo(({
           button={button}
           dpiScale={dpiScale}
           screenInfo={screenInfo}
+          shortcutNumber={shortcutNumber}
           onSystemAction={button.action?.action_type === 'system' ? onSystemAction : undefined}
           onContextMenu={onContextMenu}
         />
@@ -97,6 +100,7 @@ export const GridCell: React.FC<GridCellProps> = React.memo(({
     prevProps.isDropTarget === nextProps.isDropTarget &&
     prevProps.dpiScale === nextProps.dpiScale &&
     prevProps.screenInfo === nextProps.screenInfo &&
+    prevProps.shortcutNumber === nextProps.shortcutNumber &&
     prevProps.onSystemAction === nextProps.onSystemAction &&
     prevProps.onContextMenu === nextProps.onContextMenu &&
     prevProps.onEmptyCellContextMenu === nextProps.onEmptyCellContextMenu

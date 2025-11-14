@@ -29,6 +29,137 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
+/* Button Shortcut Badge */
+.button-shortcut-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  min-width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, 
+    rgba(100, 108, 255, 0.95) 0%, 
+    rgba(80, 88, 235, 0.95) 100%);
+  color: rgba(255, 255, 255, 0.98);
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 5px;
+  box-shadow: 
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 0 0 1px rgba(100, 108, 255, 0.4);
+  z-index: 10;
+  pointer-events: none;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.02em;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.action-button:hover .button-shortcut-badge {
+  background: linear-gradient(135deg, 
+    rgba(100, 108, 255, 1) 0%, 
+    rgba(80, 88, 235, 1) 100%);
+  box-shadow: 
+    0 3px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 12px rgba(100, 108, 255, 0.6),
+    0 0 0 2px rgba(100, 108, 255, 0.3);
+  transform: scale(1.08) translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.action-button:active .button-shortcut-badge {
+  transform: scale(0.95);
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 0 6px rgba(100, 108, 255, 0.4);
+}
+
+/* Badge styling for Shift+ shortcuts (buttons 11-20) */
+.button-shortcut-badge[data-shift="true"] {
+  background: linear-gradient(135deg, 
+    rgba(168, 85, 247, 0.95) 0%, 
+    rgba(148, 65, 227, 0.95) 100%);
+  box-shadow: 
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 0 0 1px rgba(168, 85, 247, 0.4);
+}
+
+.action-button:hover .button-shortcut-badge[data-shift="true"] {
+  background: linear-gradient(135deg, 
+    rgba(168, 85, 247, 1) 0%, 
+    rgba(148, 65, 227, 1) 100%);
+  box-shadow: 
+    0 3px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 12px rgba(168, 85, 247, 0.6),
+    0 0 0 2px rgba(168, 85, 247, 0.3);
+}
+
+/* Badge responsive sizing for different screen sizes */
+@media (max-width: 768px) {
+  .button-shortcut-badge {
+    min-width: 16px;
+    height: 16px;
+    font-size: 0.6rem;
+    padding: 1px 3px;
+    border-radius: 4px;
+    top: 3px;
+    left: 3px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .button-shortcut-badge {
+    min-width: 22px;
+    height: 22px;
+    font-size: 0.75rem;
+    padding: 3px 6px;
+    border-radius: 7px;
+    top: 5px;
+    left: 5px;
+  }
+}
+
+@media (min-width: 2560px) {
+  .button-shortcut-badge {
+    min-width: 24px;
+    height: 24px;
+    font-size: 0.8rem;
+    padding: 3px 7px;
+    border-radius: 8px;
+    top: 6px;
+    left: 6px;
+  }
+}
+
+/* Badge DPI-aware scaling */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .button-shortcut-badge {
+    border-width: 0.5px;
+    box-shadow: 
+      0 2px 6px rgba(0, 0, 0, 0.3),
+      inset 0 0.5px 0 rgba(255, 255, 255, 0.25),
+      0 0 0 0.5px rgba(100, 108, 255, 0.4);
+  }
+}
+
+@media (-webkit-min-device-pixel-ratio: 3), (min-resolution: 288dpi) {
+  .button-shortcut-badge {
+    border-width: 0.33px;
+  }
+}
+
 .action-button:hover {
   border-color: rgba(100, 108, 255, 0.5);
   background: linear-gradient(135deg, 

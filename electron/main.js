@@ -159,7 +159,8 @@ function createDefaultConfig() {
         animation: {
           enabled: true,
           duration_ms: 150
-        }
+        },
+        auto_close_on_open: true
       }
     },
     profiles: [

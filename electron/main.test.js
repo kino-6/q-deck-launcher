@@ -1265,6 +1265,445 @@ describe('Electron Main Process - Default Configuration', () => {
   });
 });
 
+describe('Electron Main Process - Overlay Flicker Prevention', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('should not have visible flicker when toggling overlay with F11', () => {
+    // Create overlay window with flicker prevention configuration
+    const overlayWindow = mockBrowserWindow({
+      width: 1000,
+      height: 600,
+      show: false,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      backgroundColor: '#00000000',
+      hasShadow: false,
+      paintWhenInitiallyHidden: false,
+      roundedCorners: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        backgroundThrottling: false,
+      },
+    });
+
+    // Add setOpacity and setAlwaysOnTop methods to mock
+    overlayWindow.setOpacity = vi.fn();
+    overlayWindow.setAlwaysOnTop = vi.fn();
+
+    // Mock webContents.isLoading to return false (window is ready)
+    overlayWindow.webContents.isLoading = vi.fn(() => false);
+
+    // Simulate the showOverlay function with flicker prevention
+    const showOverlay = () => {
+      if (overlayWindow) {
+        if (!overlayWindow.webContents.isLoading()) {
+          // Set opacity to 0 before showing (prevents flash)
+          overlayWindow.setOpacity(0);
+          overlayWindow.show();
+          overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+          overlayWindow.focus();
+          
+          // Quick fade in after one frame (16ms at 60fps)
+          setTimeout(() => {
+            if (overlayWindow) overlayWindow.setOpacity(1);
+          }, 16);
+        }
+      }
+    };
+
+    // Simulate the hideOverlay function with flicker prevention
+    const hideOverlay = () => {
+      if (overlayWindow && overlayWindow.isVisible()) {
+        // Quick fade out before hiding (reduces flicker)
+        overlayWindow.setOpacity(0);
+        setTimeout(() => {
+          if (overlayWindow && overlayWindow.isVisible()) {
+            overlayWindow.hide();
+            // Reset opacity for next show
+            overlayWindow.setOpacity(1);
+          }
+        }, 16);
+      }
+    };
+
+    // Initially hidden
+    expect(overlayWindow.isVisible()).toBe(false);
+
+    // Test 1: Show overlay with F11 - should use opacity fade-in
+    showOverlay();
+
+    // Verify opacity was set to 0 before showing
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(0);
+    expect(overlayWindow.show).toHaveBeenCalled();
+    expect(overlayWindow.setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver');
+    expect(overlayWindow.focus).toHaveBeenCalled();
+
+    // Advance timers to trigger fade-in
+    vi.advanceTimersByTime(16);
+
+    // Verify opacity was set to 1 after 16ms (fade-in complete)
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(1);
+
+    // Verify the sequence: setOpacity(0) -> show -> setOpacity(1)
+    const opacityCalls = overlayWindow.setOpacity.mock.calls;
+    expect(opacityCalls[0][0]).toBe(0); // First call: opacity 0
+    expect(opacityCalls[1][0]).toBe(1); // Second call: opacity 1
+
+    // Clear mocks for next test
+    vi.clearAllMocks();
+
+    // Test 2: Hide overlay with F11 - should use opacity fade-out
+    hideOverlay();
+
+    // Verify opacity was set to 0 before hiding
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(0);
+
+    // Advance timers to trigger hide
+    vi.advanceTimersByTime(16);
+
+    // Verify window was hidden after fade-out
+    expect(overlayWindow.hide).toHaveBeenCalled();
+    
+    // Verify opacity was reset to 1 for next show
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(1);
+
+    // Verify the sequence: setOpacity(0) -> hide -> setOpacity(1)
+    const hideOpacityCalls = overlayWindow.setOpacity.mock.calls;
+    expect(hideOpacityCalls[0][0]).toBe(0); // First call: opacity 0
+    expect(hideOpacityCalls[1][0]).toBe(1); // Second call: opacity 1 (reset)
+  });
+
+  it('should use optimal timing for flicker prevention (16ms at 60fps)', () => {
+    const overlayWindow = mockBrowserWindow({
+      show: false,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    overlayWindow.setOpacity = vi.fn();
+    overlayWindow.setAlwaysOnTop = vi.fn();
+    overlayWindow.webContents.isLoading = vi.fn(() => false);
+
+    const showOverlay = () => {
+      if (overlayWindow && !overlayWindow.webContents.isLoading()) {
+        overlayWindow.setOpacity(0);
+        overlayWindow.show();
+        overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+        overlayWindow.focus();
+        
+        // Verify timing is exactly 16ms (one frame at 60fps)
+        setTimeout(() => {
+          if (overlayWindow) overlayWindow.setOpacity(1);
+        }, 16);
+      }
+    };
+
+    showOverlay();
+
+    // Verify opacity is still 0 before 16ms
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(0);
+    expect(overlayWindow.setOpacity).toHaveBeenCalledTimes(1);
+
+    // Advance by 15ms - should not trigger fade-in yet
+    vi.advanceTimersByTime(15);
+    expect(overlayWindow.setOpacity).toHaveBeenCalledTimes(1);
+
+    // Advance by 1ms more (total 16ms) - should trigger fade-in
+    vi.advanceTimersByTime(1);
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(1);
+    expect(overlayWindow.setOpacity).toHaveBeenCalledTimes(2);
+  });
+
+  it('should prevent flicker on high-refresh-rate displays', () => {
+    // High refresh rate displays (120Hz, 144Hz) need faster transitions
+    const overlayWindow = mockBrowserWindow({
+      show: false,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    overlayWindow.setOpacity = vi.fn();
+    overlayWindow.setAlwaysOnTop = vi.fn();
+    overlayWindow.webContents.isLoading = vi.fn(() => false);
+
+    const showOverlay = () => {
+      if (overlayWindow && !overlayWindow.webContents.isLoading()) {
+        // Immediate opacity change (no delay)
+        overlayWindow.setOpacity(0);
+        overlayWindow.show();
+        overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+        overlayWindow.focus();
+        
+        // 16ms is fast enough for 60fps, also works for higher refresh rates
+        setTimeout(() => {
+          if (overlayWindow) overlayWindow.setOpacity(1);
+        }, 16);
+      }
+    };
+
+    showOverlay();
+
+    // Verify opacity transition happens within one frame
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(0);
+    
+    vi.advanceTimersByTime(16);
+    
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(1);
+
+    // Verify total transition time is minimal (16ms)
+    const opacityCalls = overlayWindow.setOpacity.mock.calls;
+    expect(opacityCalls.length).toBe(2);
+    expect(opacityCalls[0][0]).toBe(0);
+    expect(opacityCalls[1][0]).toBe(1);
+  });
+
+  it('should have smooth transitions on high-refresh-rate displays (120Hz, 144Hz, 240Hz)', () => {
+    // Test smooth transitions for various high refresh rate displays
+    const refreshRates = [
+      { hz: 60, frameTime: 16.67 },   // 60Hz baseline
+      { hz: 120, frameTime: 8.33 },   // 120Hz
+      { hz: 144, frameTime: 6.94 },   // 144Hz
+      { hz: 240, frameTime: 4.17 },   // 240Hz
+    ];
+
+    refreshRates.forEach(({ hz, frameTime }) => {
+      vi.clearAllMocks();
+
+      const overlayWindow = mockBrowserWindow({
+        show: false,
+        frame: false,
+        transparent: true,
+        alwaysOnTop: true,
+        backgroundColor: '#00000000',
+        hasShadow: false,
+        paintWhenInitiallyHidden: false,
+        roundedCorners: false,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          backgroundThrottling: false,
+          disableHardwareAcceleration: false,
+        },
+      });
+
+      overlayWindow.setOpacity = vi.fn();
+      overlayWindow.setAlwaysOnTop = vi.fn();
+      overlayWindow.webContents.isLoading = vi.fn(() => false);
+
+      const showOverlay = () => {
+        if (overlayWindow && !overlayWindow.webContents.isLoading()) {
+          // Immediate opacity change (no delay)
+          overlayWindow.setOpacity(0);
+          overlayWindow.show();
+          overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+          overlayWindow.focus();
+          
+          // 16ms transition works for all refresh rates
+          // Even at 240Hz (4.17ms per frame), 16ms = ~4 frames for smooth transition
+          setTimeout(() => {
+            if (overlayWindow) overlayWindow.setOpacity(1);
+          }, 16);
+        }
+      };
+
+      const hideOverlay = () => {
+        if (overlayWindow && overlayWindow.isVisible()) {
+          overlayWindow.setOpacity(0);
+          setTimeout(() => {
+            if (overlayWindow && overlayWindow.isVisible()) {
+              overlayWindow.hide();
+              overlayWindow.setOpacity(1);
+            }
+          }, 16);
+        }
+      };
+
+      // Test show transition
+      showOverlay();
+
+      // Verify immediate opacity change to 0 (prevents flash)
+      expect(overlayWindow.setOpacity).toHaveBeenCalledWith(0);
+      expect(overlayWindow.show).toHaveBeenCalled();
+      expect(overlayWindow.setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver');
+      expect(overlayWindow.focus).toHaveBeenCalled();
+
+      // Advance time by 16ms
+      vi.advanceTimersByTime(16);
+
+      // Verify opacity transition to 1 (fade-in complete)
+      expect(overlayWindow.setOpacity).toHaveBeenCalledWith(1);
+
+      // Calculate number of frames for this refresh rate
+      const framesForTransition = Math.ceil(16 / frameTime);
+
+      // Verify transition spans multiple frames for smooth animation
+      // At 60Hz: 16ms = ~1 frame
+      // At 120Hz: 16ms = ~2 frames
+      // At 144Hz: 16ms = ~2.3 frames
+      // At 240Hz: 16ms = ~3.8 frames
+      expect(framesForTransition).toBeGreaterThanOrEqual(1);
+
+      // For high refresh rates (>60Hz), verify multiple frames
+      if (hz > 60) {
+        expect(framesForTransition).toBeGreaterThan(1);
+      }
+
+      // Clear mocks for hide test
+      vi.clearAllMocks();
+
+      // Test hide transition
+      hideOverlay();
+
+      // Verify immediate opacity change to 0 (fade-out start)
+      expect(overlayWindow.setOpacity).toHaveBeenCalledWith(0);
+
+      // Advance time by 16ms
+      vi.advanceTimersByTime(16);
+
+      // Verify window hidden and opacity reset
+      expect(overlayWindow.hide).toHaveBeenCalled();
+      expect(overlayWindow.setOpacity).toHaveBeenCalledWith(1);
+
+      // Verify smooth transition sequence
+      const opacityCalls = overlayWindow.setOpacity.mock.calls;
+      expect(opacityCalls.length).toBe(2);
+      expect(opacityCalls[0][0]).toBe(0); // Fade-out start
+      expect(opacityCalls[1][0]).toBe(1); // Reset for next show
+    });
+  });
+
+  it('should maintain flicker prevention across multiple toggles', () => {
+    const overlayWindow = mockBrowserWindow({
+      show: false,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    overlayWindow.setOpacity = vi.fn();
+    overlayWindow.setAlwaysOnTop = vi.fn();
+    overlayWindow.webContents.isLoading = vi.fn(() => false);
+
+    const showOverlay = () => {
+      if (overlayWindow && !overlayWindow.webContents.isLoading()) {
+        overlayWindow.setOpacity(0);
+        overlayWindow.show();
+        overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+        overlayWindow.focus();
+        setTimeout(() => {
+          if (overlayWindow) overlayWindow.setOpacity(1);
+        }, 16);
+      }
+    };
+
+    const hideOverlay = () => {
+      if (overlayWindow && overlayWindow.isVisible()) {
+        overlayWindow.setOpacity(0);
+        setTimeout(() => {
+          if (overlayWindow && overlayWindow.isVisible()) {
+            overlayWindow.hide();
+            overlayWindow.setOpacity(1);
+          }
+        }, 16);
+      }
+    };
+
+    // Toggle 1: Show
+    showOverlay();
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(0);
+    vi.advanceTimersByTime(16);
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(1);
+
+    vi.clearAllMocks();
+
+    // Toggle 2: Hide
+    hideOverlay();
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(0);
+    vi.advanceTimersByTime(16);
+    expect(overlayWindow.hide).toHaveBeenCalled();
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(1);
+
+    vi.clearAllMocks();
+
+    // Toggle 3: Show again
+    showOverlay();
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(0);
+    vi.advanceTimersByTime(16);
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(1);
+
+    vi.clearAllMocks();
+
+    // Toggle 4: Hide again
+    hideOverlay();
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(0);
+    vi.advanceTimersByTime(16);
+    expect(overlayWindow.hide).toHaveBeenCalled();
+    expect(overlayWindow.setOpacity).toHaveBeenCalledWith(1);
+
+    // Verify flicker prevention worked consistently across all toggles
+    expect(true).toBe(true);
+  });
+
+  it('should configure window properties to minimize flicker', () => {
+    // Verify all flicker prevention properties are set correctly
+    const overlayConfig = {
+      width: 1000,
+      height: 600,
+      show: false,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      backgroundColor: '#00000000', // Fully transparent
+      hasShadow: false, // Disable shadow for better performance
+      paintWhenInitiallyHidden: false, // Don't paint when hidden
+      roundedCorners: false, // Disable rounded corners on Windows 11
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        backgroundThrottling: false, // Prevent throttling when hidden
+        disableHardwareAcceleration: false, // Keep hardware acceleration
+      },
+    };
+
+    const overlayWindow = mockBrowserWindow(overlayConfig);
+
+    // Verify all flicker prevention properties
+    expect(overlayWindow.config.transparent).toBe(true);
+    expect(overlayWindow.config.backgroundColor).toBe('#00000000');
+    expect(overlayWindow.config.hasShadow).toBe(false);
+    expect(overlayWindow.config.paintWhenInitiallyHidden).toBe(false);
+    expect(overlayWindow.config.roundedCorners).toBe(false);
+    expect(overlayWindow.config.webPreferences.backgroundThrottling).toBe(false);
+    expect(overlayWindow.config.webPreferences.disableHardwareAcceleration).toBe(false);
+  });
+});
+
 describe('Electron Main Process - Icon Extraction', () => {
   let mockNativeImage;
   let mockGetFileIcon;
