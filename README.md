@@ -2,6 +2,23 @@
 
 A powerful, customizable application launcher with hotkey support for Windows.
 
+## 📥 Download
+
+**Latest Release:** [Download Q-Deck Launcher](https://github.com/kino-6/q-deck-launcher/releases/latest)
+
+### Quick Install
+
+1. Download `Q-Deck.Launcher.X.X.X.exe` from the [latest release](https://github.com/kino-6/q-deck-launcher/releases/latest)
+2. Run the executable (no installation required - portable app)
+3. Press **F11** to show/hide the launcher
+4. Configuration file will be created automatically at `%APPDATA%\q-deck-launcher\config.yaml`
+
+### System Requirements
+
+- **OS**: Windows 10/11 (64-bit)
+- **RAM**: 100MB minimum
+- **Disk**: 200MB free space
+
 ## Features
 
 - 🎯 **Global Hotkeys**: Register custom hotkeys to show/hide the launcher
