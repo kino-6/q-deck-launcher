@@ -5,3 +5,4 @@ pub mod profile;
 pub mod logger;
 pub mod window;
 pub mod icon;
+pub mod drag_drop;

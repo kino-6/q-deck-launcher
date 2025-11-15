@@ -78,8 +78,12 @@ impl WindowManager {
             info!("Using existing overlay window");
             self.configure_overlay_window(&overlay_window)?;
             self.position_overlay_dropdown_top()?; // Position for dropdown animation
+            
+            // Ensure window is always on top and focused
+            overlay_window.set_always_on_top(true)?;
             overlay_window.show()?;
             overlay_window.set_focus()?;
+            overlay_window.unminimize()?; // In case it was minimized
         } else {
             info!("Creating new overlay window");
             self.create_overlay_window()?;
@@ -225,10 +229,9 @@ impl WindowManager {
             match event {
                 tauri::WindowEvent::Focused(focused) => {
                     if !focused {
-                        debug!("Overlay window lost focus, hiding");
-                        if let Err(e) = window_manager.hide_overlay() {
-                            error!("Failed to hide overlay on focus lost: {}", e);
-                        }
+                        debug!("Overlay window lost focus - keeping visible for drag and drop");
+                        // Don't auto-hide on focus lost to allow drag and drop operations
+                        // Users can use Escape key or F11 to hide manually
                     }
                 }
                 tauri::WindowEvent::CloseRequested { api, .. } => {

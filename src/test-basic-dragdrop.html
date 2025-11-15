@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Basic Drag Drop Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1e1e1e;
+            color: #fff;
+        }
+        
+        .drop-zone {
+            width: 400px;
+            height: 200px;
+            border: 3px dashed #666;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            background: #2d2d2d;
+            transition: all 0.3s ease;
+        }
+        
+        .drop-zone.drag-over {
+            border-color: #4CAF50;
+            background: #1a4a1a;
+        }
+        
+        .log {
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Basic HTML Drag and Drop Test</h1>
+    <p>This tests basic HTML drag and drop without Tauri.</p>
+    
+    <div class="drop-zone" id="dropZone">
+        Drop files here
+    </div>
+    
+    <div class="log" id="log"></div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const logEl = document.getElementById('log');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            console.log(logMessage);
+            logEl.textContent += logMessage + '\n';
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        log('Basic drag drop test initialized');
+        
+        // Test all drag events
+        dropZone.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            log('DRAGENTER detected');
+            log(`  Types: ${Array.from(e.dataTransfer.types).join(', ')}`);
+            log(`  Files: ${e.dataTransfer.files.length}`);
+            dropZone.classList.add('drag-over');
+        });
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            log('DRAGOVER detected');
+        });
+        
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            log('DRAGLEAVE detected');
+            dropZone.classList.remove('drag-over');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            log('DROP detected!');
+            log(`  Files: ${e.dataTransfer.files.length}`);
+            
+            for (let i = 0; i < e.dataTransfer.files.length; i++) {
+                const file = e.dataTransfer.files[i];
+                log(`  File ${i + 1}: ${file.name} (${file.size} bytes)`);
+            }
+            
+            dropZone.classList.remove('drag-over');
+        });
+        
+        // Test document-level events
+        document.addEventListener('dragenter', (e) => {
+            log('Document DRAGENTER');
+        });
+        
+        document.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        
+        log('All event listeners registered');
+    </script>
+</body>
+</html>

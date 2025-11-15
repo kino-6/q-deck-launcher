@@ -11,7 +11,7 @@
   justify-content: center;
   padding-top: 20px;
   z-index: 9999;
-  pointer-events: none;
+  pointer-events: auto; /* Enable click detection on transparent background */
 }
 
 /* Overlay Content - Main window */

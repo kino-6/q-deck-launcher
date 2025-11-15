@@ -607,7 +607,7 @@ impl ActionLog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
+    use tempfile::TempDir;
 
     #[test]
     fn test_action_log_creation() {

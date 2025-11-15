@@ -307,7 +307,7 @@ impl ProfileManager {
         }
 
         // Initialize last active pages for all profiles
-        for (index, profile) in config.profiles.iter().enumerate() {
+        for (_index, profile) in config.profiles.iter().enumerate() {
             if !self.state.last_active_pages.contains_key(&profile.name) {
                 self.state.last_active_pages.insert(profile.name.clone(), 0);
             }

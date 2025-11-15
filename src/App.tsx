@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import Grid from './components/Grid';
-import Overlay from './pages/Overlay';
-import { ProfileProvider } from './contexts/ProfileContext';
-import { tauriAPI, QDeckConfig, ParsedHotkey } from './lib/tauri';
+import { useEffect, useState, lazy, Suspense } from 'react';
+import { tauriAPI, QDeckConfig, ParsedHotkey } from './lib/platform-api';
 import "./App.css";
+
+// Lazy load components for faster initial load
+const Grid = lazy(() => import('./components/Grid'));
+const Overlay = lazy(() => import('./pages/Overlay'));
 
 function App() {
   const [config, setConfig] = useState<QDeckConfig | null>(null);
@@ -16,8 +17,17 @@ function App() {
 
   useEffect(() => {
     // Check if we're in overlay mode based on URL
-    const isOverlay = window.location.pathname === '/overlay';
+    // Support both /overlay and #/overlay (hash routing)
+    const isOverlay = window.location.pathname === '/overlay' || 
+                      window.location.hash === '#/overlay' ||
+                      window.location.pathname.endsWith('/overlay');
     setIsOverlayMode(isOverlay);
+    
+    console.log('App mode detection:', {
+      pathname: window.location.pathname,
+      hash: window.location.hash,
+      isOverlay
+    });
     
     loadConfig();
     if (!isOverlay) {
@@ -29,7 +39,7 @@ function App() {
     try {
       setIsLoading(true);
       const loadedConfig = await tauriAPI.getConfig();
-      setConfig(loadedConfig);
+      setConfig(loadedConfig as QDeckConfig);
       setError(null);
     } catch (err) {
       setError(`Failed to load config: ${err}`);
@@ -156,9 +166,9 @@ function App() {
   // If we're in overlay mode, render the overlay component
   if (isOverlayMode) {
     return (
-      <ProfileProvider>
+      <Suspense fallback={<div style={{ padding: '20px' }}>Loading overlay...</div>}>
         <Overlay />
-      </ProfileProvider>
+      </Suspense>
     );
   }
 
@@ -183,10 +193,9 @@ function App() {
   }
 
   return (
-    <ProfileProvider>
-      <main className="container">
-        <h1>Q-Deck Settings</h1>
-        <p className="subtitle">Configure your overlay launcher</p>
+    <main className="container">
+      <h1>Q-Deck Settings</h1>
+      <p className="subtitle">Configure your overlay launcher</p>
         
         <div className="controls">
           <button onClick={handleShowOverlay}>Show Overlay</button>
@@ -278,9 +287,10 @@ function App() {
         </div>
       </div>
 
+      <Suspense fallback={<div>Loading grid...</div>}>
         <Grid />
-      </main>
-    </ProfileProvider>
+      </Suspense>
+    </main>
   );
 }
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { ActionButton as ActionButtonType, tauriAPI, IconInfo } from '../lib/tauri';
+import { ActionButton as ActionButtonType, tauriAPI, IconInfo } from '../lib/platform-api';
 import './ActionButton.css';
 
 interface ActionButtonProps {
@@ -13,31 +13,29 @@ interface ActionButtonProps {
     availHeight: number;
     pixelRatio: number;
   };
+  shortcutNumber?: string | null;
   onSystemAction?: (action: string) => void;
   onContextMenu?: (event: React.MouseEvent, button: ActionButtonType) => void;
 }
 
-export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1, screenInfo, onSystemAction, onContextMenu }) => {
+export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, dpiScale = 1, screenInfo, shortcutNumber, onSystemAction, onContextMenu }) => {
   const [processedIcon, setProcessedIcon] = useState<IconInfo | null>(null);
   const [iconError, setIconError] = useState<string | null>(null);
   const [labelFontSize, setLabelFontSize] = useState<number | null>(null);
-  const [typeFontSize, setTypeFontSize] = useState<number | null>(null);
   
   const labelRef = useRef<HTMLDivElement>(null);
-  const typeRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Dynamic font size adjustment function
   const adjustTextSize = useCallback(() => {
-    if (!labelRef.current || !typeRef.current || !buttonRef.current) return;
+    if (!labelRef.current || !buttonRef.current) return;
 
     const buttonRect = buttonRef.current.getBoundingClientRect();
     const availableWidth = buttonRect.width - 16; // Account for padding
-    const availableHeight = buttonRect.height;
 
     // Calculate base font sizes based on DPI and screen info
-    const baseLabelSize = 0.75 * Math.min(dpiScale, 1.6) * (screenInfo ? getScreenScaleFactor(screenInfo) : 1);
-    const baseTypeSize = 0.6 * Math.min(dpiScale, 1.4) * (screenInfo ? getScreenScaleFactor(screenInfo) : 1);
+    // Increased from 0.75 to 1.0 for better readability
+    const baseLabelSize = 1.0 * Math.min(dpiScale, 1.6) * (screenInfo ? getScreenScaleFactor(screenInfo) : 1);
 
     // Adjust label font size
     const labelText = button.label;
@@ -74,44 +72,8 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
     optimalLabelSize = low;
     document.body.removeChild(tempLabel);
 
-    // Adjust type font size similarly
-    const typeText = button.action_type;
-    const maxTypeSize = baseTypeSize * 16;
-    const minTypeSize = Math.max(6, maxTypeSize * 0.7);
-    
-    let optimalTypeSize = maxTypeSize;
-    
-    const tempType = document.createElement('div');
-    tempType.style.position = 'absolute';
-    tempType.style.visibility = 'hidden';
-    tempType.style.whiteSpace = 'nowrap';
-    tempType.style.fontFamily = window.getComputedStyle(typeRef.current).fontFamily;
-    tempType.style.fontWeight = window.getComputedStyle(typeRef.current).fontWeight;
-    tempType.style.textTransform = 'uppercase';
-    tempType.style.letterSpacing = '0.2px';
-    tempType.textContent = typeText;
-    document.body.appendChild(tempType);
-
-    low = minTypeSize;
-    high = maxTypeSize;
-    
-    while (high - low > 1) {
-      const mid = (low + high) / 2;
-      tempType.style.fontSize = `${mid}px`;
-      
-      if (tempType.offsetWidth <= availableWidth) {
-        low = mid;
-      } else {
-        high = mid;
-      }
-    }
-    
-    optimalTypeSize = low;
-    document.body.removeChild(tempType);
-
     setLabelFontSize(optimalLabelSize);
-    setTypeFontSize(optimalTypeSize);
-  }, [button.label, button.action_type, dpiScale, screenInfo]);
+  }, [button.label, dpiScale, screenInfo]);
 
   // Helper function to get screen scale factor
   const getScreenScaleFactor = (screenInfo: any): number => {
@@ -181,8 +143,42 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
       }
       
       console.log('Executing action:', button.action_type, button.config);
-      // TODO: Implement actual action execution in task 5
-      await tauriAPI.executeAction(`${button.action_type}:${JSON.stringify(button.config)}`);
+      // Pass the full action configuration to the backend
+      const actionConfig = {
+        type: button.action_type,
+        label: button.label,
+        ...button.config
+      };
+      const result = await tauriAPI.executeAction(actionConfig);
+      
+      console.log('🔍 Action execution result:', {
+        success: result?.success,
+        actionType: result?.actionType,
+        buttonActionType: button.action_type,
+        result: result
+      });
+      
+      // Detect Open action execution for auto-close behavior
+      if (result && result.success && result.actionType === 'Open') {
+        console.log('✅ Open action detected - dispatching event:', result.actionType);
+        // Emit custom event for Open action detection
+        const event = new CustomEvent('open-action-executed', { 
+          detail: { 
+            actionType: result.actionType,
+            label: button.label 
+          },
+          bubbles: true,
+          cancelable: false
+        });
+        window.dispatchEvent(event);
+        console.log('✅ Event dispatched successfully');
+      } else {
+        console.log('❌ Not dispatching event - conditions not met:', {
+          hasResult: !!result,
+          success: result?.success,
+          actionType: result?.actionType
+        });
+      }
     } catch (err) {
       console.error('Failed to execute action:', err);
     }
@@ -208,8 +204,48 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
                   height: '100%',
                   objectFit: 'contain',
                 }}
-                onError={() => {
-                  console.warn('Failed to load processed icon image');
+                onError={(e) => {
+                  console.error('Failed to load processed icon image:', processedIcon.data_url?.substring(0, 50));
+                  setIconError('Failed to load icon image');
+                }}
+              />
+            );
+          } else if (processedIcon.path) {
+            // Check if path is a data URL - if so, use it directly
+            if (processedIcon.path.startsWith('data:')) {
+              return (
+                <img 
+                  src={processedIcon.path} 
+                  alt={button.label}
+                  className="button-icon-image"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                  }}
+                  onError={(e) => {
+                    console.error('Failed to load data URL from path:', processedIcon.path?.substring(0, 50));
+                    setIconError('Failed to load icon image');
+                  }}
+                />
+              );
+            }
+            // For file paths, use file:// protocol
+            const iconSrc = processedIcon.path.startsWith('file://') 
+              ? processedIcon.path 
+              : `file://${processedIcon.path}`;
+            return (
+              <img 
+                src={iconSrc} 
+                alt={button.label}
+                className="button-icon-image"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                }}
+                onError={(e) => {
+                  console.error('Failed to load extracted icon:', iconSrc);
                   setIconError('Failed to load icon image');
                 }}
               />
@@ -227,8 +263,8 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
                 height: '100%',
                 objectFit: 'contain',
               }}
-              onError={() => {
-                console.warn('Failed to load URL icon');
+              onError={(e) => {
+                console.error('Failed to load URL icon:', processedIcon.path);
                 setIconError('Failed to load URL icon');
               }}
             />
@@ -238,6 +274,23 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
 
     // Fallback to original icon if processing failed or is in progress
     if (button.icon && !iconError) {
+      // Check if it's a data URL (base64 encoded image)
+      if (button.icon.startsWith('data:')) {
+        return (
+          <img 
+            src={button.icon} 
+            alt={button.label}
+            className="button-icon-image"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+            }}
+            onError={() => setIconError('Failed to load data URL icon')}
+          />
+        );
+      }
+      
       // Check if it's a simple emoji or text icon
       if (button.icon.length <= 4) { // Likely an emoji
         return button.icon;
@@ -245,9 +298,13 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
       
       // Check if it's a file path or URL
       if (button.icon.startsWith('http') || button.icon.includes('.')) {
+        // For file paths, use file:// protocol
+        const iconSrc = button.icon.startsWith('http') || button.icon.startsWith('file://') 
+          ? button.icon 
+          : `file://${button.icon}`;
         return (
           <img 
-            src={button.icon} 
+            src={iconSrc} 
             alt={button.label}
             className="button-icon-image"
             style={{
@@ -342,9 +399,6 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
       // Apply dynamic font sizes if calculated
       if (labelFontSize) {
         baseStyle['--dynamic-label-size'] = `${labelFontSize}px`;
-      }
-      if (typeFontSize) {
-        baseStyle['--dynamic-type-size'] = `${typeFontSize}px`;
       }
       
       if (button.style.font_family) {
@@ -459,11 +513,38 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
     return 'long';
   };
 
+  // Memoize button style to avoid recalculation on every render
+  const buttonStyle = useMemo(() => getButtonStyle(), [
+    button.style,
+    button.label,
+    dpiScale,
+    screenInfo,
+    labelFontSize,
+  ]);
+
+  // Memoize action icon to avoid recalculation
+  const actionIcon = useMemo(() => getActionIcon(), [
+    processedIcon,
+    button.icon,
+    button.action,
+    button.action_type,
+    iconError,
+  ]);
+
+  // Memoize title string
+  const buttonTitle = useMemo(
+    () => `${button.label} (${button.action?.action_type === 'system' ? button.action.system_action : button.action_type})`,
+    [button.label, button.action, button.action_type]
+  );
+
+  // Memoize label length category
+  const labelLengthCategory = useMemo(() => getLabelLengthCategory(button.label), [button.label]);
+
   return (
     <motion.button
       ref={buttonRef}
       className="action-button"
-      style={getButtonStyle()}
+      style={buttonStyle}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       initial={{ scale: 1, rotateZ: 0 }}
@@ -477,12 +558,20 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
         rotateZ: 0,
         transition: { duration: 0.1 }
       }}
-      title={`${button.label} (${button.action?.action_type === 'system' ? button.action.system_action : button.action_type})`}
+      title={buttonTitle}
       data-system-action={button.action?.action_type === 'system' ? button.action.system_action : undefined}
-      data-label-length={getLabelLengthCategory(button.label)}
+      data-label-length={labelLengthCategory}
     >
+      {shortcutNumber && (
+        <div 
+          className="button-shortcut-badge"
+          data-shift={shortcutNumber.startsWith('⇧') ? 'true' : 'false'}
+        >
+          {shortcutNumber}
+        </div>
+      )}
       <div className="button-icon">
-        {getActionIcon()}
+        {actionIcon}
       </div>
       <div 
         ref={labelRef}
@@ -491,15 +580,21 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ button, dpiScale = 1
       >
         {button.label}
       </div>
-      <div 
-        ref={typeRef}
-        className="button-type"
-        style={typeFontSize ? { fontSize: `${typeFontSize}px` } : undefined}
-      >
-        {button.action_type}
-      </div>
     </motion.button>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  // Only re-render if these specific props change
+  return (
+    prevProps.button === nextProps.button &&
+    prevProps.dpiScale === nextProps.dpiScale &&
+    prevProps.screenInfo === nextProps.screenInfo &&
+    prevProps.shortcutNumber === nextProps.shortcutNumber &&
+    prevProps.onSystemAction === nextProps.onSystemAction &&
+    prevProps.onContextMenu === nextProps.onContextMenu
+  );
+});
+
+ActionButton.displayName = 'ActionButton';
 
 export default ActionButton;

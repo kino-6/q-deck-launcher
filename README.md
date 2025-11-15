@@ -2,6 +2,23 @@
 
 A powerful, customizable application launcher with hotkey support for Windows.
 
+## 📥 Download
+
+**Latest Release:** [Download Q-Deck Launcher](https://github.com/kino-6/q-deck-launcher/releases/latest)
+
+### Quick Install
+
+1. Download `Q-Deck.Launcher.X.X.X.exe` from the [latest release](https://github.com/kino-6/q-deck-launcher/releases/latest)
+2. Run the executable (no installation required - portable app)
+3. Press **F11** to show/hide the launcher
+4. Configuration file will be created automatically at `%APPDATA%\q-deck-launcher\config.yaml`
+
+### System Requirements
+
+- **OS**: Windows 10/11 (64-bit)
+- **RAM**: 100MB minimum
+- **Disk**: 200MB free space
+
 ## Features
 
 - 🎯 **Global Hotkeys**: Register custom hotkeys to show/hide the launcher
@@ -17,55 +34,73 @@ A powerful, customizable application launcher with hotkey support for Windows.
 ### Prerequisites
 
 - **Node.js** (v16 or later) - [Download here](https://nodejs.org/)
-- **Rust** (latest stable) - [Install via rustup](https://rustup.rs/)
 
 ### Development Mode
 
-#### Option 1: Using Launch Scripts (Recommended)
+**標準起動方法（常にこれを使用）:**
 
-**Windows Command Prompt:**
-```cmd
-launch.bat
-```
-
-**PowerShell:**
 ```powershell
-.\launch.ps1
+# 通常の開発モード（DevTools付き）
+.\launch.ps1 -Force
+
+# UX評価モード（DevToolsなし）
+.\launch.ps1 -Force -NoDevTools
 ```
 
-#### Option 2: Manual Commands
+**launch.ps1の機能:**
+- ✅ 自動的にポートの競合を解決
+- ✅ 既存プロセスのクリーンアップ
+- ✅ エラーハンドリング
+- ✅ 環境チェック
+- ✅ DevToolsの有効/無効切り替え
 
-```bash
-# Install dependencies
+**初回起動時:**
+```powershell
+# 依存関係をインストール
 npm install
 
-# Start development server
-npm run tauri dev
+# アプリケーションを起動
+.\launch.ps1 -Force
 ```
 
 ### Production Build
 
-#### Using Build Script
-```cmd
-build.bat
+**ポータブル版のビルド（推奨）:**
+```powershell
+# TypeScriptのビルド + Viteのビルド
+npm run build
+
+# Electronのポータブル版をビルド
+npx electron-builder --win portable --config.win.signAndEditExecutable=false
 ```
 
-#### Manual Build
-```bash
-npm run tauri build
+**全てのビルド（インストーラー + ポータブル版）:**
+```powershell
+npm run electron:build:win
 ```
 
-The built application will be in `src-tauri/target/release/bundle/`.
+ビルドされたファイルは `release/` ディレクトリに出力されます:
+- `Q-Deck Launcher X.X.X.exe` - **ポータブル版**（単一の.exeファイル、インストール不要）
+- `Q-Deck Launcher Setup X.X.X.exe` - インストーラー版（オプション）
+- `win-unpacked/` - 展開版（開発用）
+
+**ポータブル版の使い方:**
+1. `Q-Deck Launcher X.X.X.exe` をダブルクリックして起動
+2. 初回起動時に `%APPDATA%\q-deck-launcher\config.yaml` が自動生成されます
+3. F11キーでオーバーレイを表示/非表示
+
+**配布方法:**
+- ポータブル版の.exeファイルのみを配布すれば、ユーザーはすぐに使用できます
+- インストール不要、設定ファイルは自動生成されます
 
 ## Default Hotkeys
 
-- **Ctrl+F12**: Show/Hide overlay
+- **F11**: Show/Hide overlay
 
 ## Configuration
 
 The application uses YAML configuration files located at:
-- **Portable mode**: `config.yaml` in the application directory
-- **Standard mode**: `%APPDATA%/Q-Deck/config.yaml`
+- **Windows**: `%APPDATA%/q-deck-launcher/config.yaml`
 
 ### Example Configuration
 
@@ -108,41 +143,69 @@ profiles:
 
 ```
 q-deck-launcher/
-├── src/                    # React frontend
-│   ├── components/         # UI components
+├── src/                    # React frontend source code
+│   ├── components/         # UI components (Grid, ButtonEditModal, etc.)
+│   ├── hooks/             # Custom React hooks
 │   ├── lib/               # Utilities and API wrappers
-│   └── App.tsx            # Main application
-├── src-tauri/             # Rust backend
-│   └── src/
-│       ├── modules/       # Feature modules
-│       │   ├── config.rs  # Configuration management
-│       │   ├── hotkey.rs  # Hotkey system
-│       │   ├── logger.rs  # Logging system
-│       │   └── ...
-│       └── lib.rs         # Main library
-├── launch.bat             # Windows development launcher
-├── launch.ps1             # PowerShell development launcher
-└── build.bat              # Production build script
+│   ├── store/             # State management (Zustand stores)
+│   ├── styles/            # CSS and theme files
+│   ├── types/             # TypeScript type definitions
+│   └── utils/             # Utility functions
+├── electron/              # Electron main process
+│   ├── actions/           # Action executors (LaunchApp, Terminal, etc.)
+│   ├── ipc/               # IPC handlers
+│   ├── main.js            # Main process entry point
+│   ├── preload.cjs        # Preload script
+│   └── ProfileStateManager.js  # Profile state management
+├── scripts/               # Build and utility scripts
+│   └── test/              # Test scripts (PowerShell)
+├── docs/                  # Documentation and implementation notes
+├── test-files/            # Test assets (images, icons, etc.)
+├── public/                # Static assets
+├── dist/                  # Built frontend (generated)
+├── release/               # Built Electron app (generated)
+├── .kiro/                 # Kiro specs and configuration
+│   └── specs/q-deck-launcher/  # Feature specs and tasks
+├── launch.ps1             # Development launcher (recommended)
+├── build.bat              # Production build script
+├── package.json           # Node.js dependencies
+├── vite.config.ts         # Vite configuration
+└── README.md              # This file
 ```
+
+### Key Directories
+
+- **`src/`**: React frontend with TypeScript
+- **`electron/`**: Electron main process and IPC handlers
+- **`scripts/test/`**: PowerShell test scripts for manual testing
+- **`docs/`**: Implementation notes, task summaries, and guides
+- **`.kiro/specs/`**: Feature specifications and task lists
 
 ### Available Scripts
 
-- `npm run dev` - Start Vite development server
-- `npm run build` - Build frontend for production
-- `npm run tauri dev` - Start Tauri development mode
-- `npm run tauri build` - Build complete application
+**開発:**
+- `.\launch.ps1 -Force` - 開発モードで起動（DevTools付き）
+- `.\launch.ps1 -Force -NoDevTools` - UX評価モード（DevToolsなし）
+- `npm run test` - テストを実行
+
+**ビルド:**
+- `npm run electron:build:win` - Windowsインストーラーをビルド
+
+**その他（直接使用しない）:**
+- `npm run dev` - Viteのみ（Electron APIなし）
+- `npm run electron:dev` - 手動起動（ポート管理なし）
 
 ### Testing
 
-#### Rust Tests
-```bash
-cd src-tauri
-cargo test
-```
+```powershell
+# 全テストを実行
+npm run test
 
-#### Frontend Tests
-```bash
-npm test
+# テストをウォッチモードで実行
+npm run test:watch
+
+# カバレッジレポートを生成
+npm run test:coverage
 ```
 
 ## Hotkey System
@@ -180,31 +243,34 @@ The launcher supports various action types:
 - **Folder**: Open folders
 - **MultiAction**: Execute multiple actions in sequence
 
-## Logging
+## Documentation
 
-All actions are logged with structured data including:
-- Timestamp
-- Action type and ID
-- Execution time
-- Success/failure status
-- Error messages (if any)
-- Context information
+All documentation has been organized in the `docs/` directory:
 
-Logs are stored in `%APPDATA%/Q-Deck/logs/` with automatic rotation.
+- **`docs/HOW_TO_RUN.md`** - 起動方法の完全ガイド
+- **`docs/QUICK_USER_TEST.md`** - ユーザ操作テストシナリオ
+- **`docs/REFACTORING_PLAN.md`** - コードリファクタリング計画
+- **`docs/TASK_*.md`** - 各機能の実装ドキュメント
+- **`.kiro/specs/q-deck-launcher/`** - 機能仕様とタスク
+
+Test scripts are located in `scripts/test/`.
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Hotkey not working**: Check if another application is using the same hotkey
-2. **Build fails**: Ensure Rust and Node.js are properly installed
-3. **Application won't start**: Check the logs in `%APPDATA%/Q-Deck/logs/`
+1. **ポートが使用中**: `.\launch.ps1 -Force` で既存プロセスを終了
+2. **Electronが起動しない**: 既存プロセスを手動で終了してから再起動
+3. **依存関係エラー**: `npm install` を再実行
+
+詳細は `HOW_TO_RUN.md` を参照してください。
 
 ### Debug Mode
 
-Run with debug logging:
-```bash
-RUST_LOG=debug npm run tauri dev
+開発モードでは自動的にDevToolsが開きます:
+```powershell
+.\launch.ps1 -Force
+# F12でDevToolsを開く
 ```
 
 ## Contributing

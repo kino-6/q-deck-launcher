@@ -4,20 +4,25 @@
 param(
     [switch]$Force,
     [switch]$NoCleanup,
+    [switch]$NoDevTools,
     [int]$StartPort = 1420,
     [int]$MaxPortAttempts = 10
 )
 
-Write-Host "Starting Q-Deck Launcher in development mode..." -ForegroundColor Green
+Write-Host "Starting Q-Deck Launcher (Electron) in development mode..." -ForegroundColor Green
 Write-Host "Parameters:" -ForegroundColor Cyan
 Write-Host "  -Force: Terminate existing processes" -ForegroundColor Gray
 Write-Host "  -NoCleanup: Skip process cleanup" -ForegroundColor Gray
+Write-Host "  -NoDevTools: Disable DevTools (for UX evaluation)" -ForegroundColor Gray
 Write-Host "  -StartPort: Starting port number (default: $StartPort)" -ForegroundColor Gray
 Write-Host "  -MaxPortAttempts: Maximum port search attempts (default: $MaxPortAttempts)" -ForegroundColor Gray
 Write-Host ""
 
 if ($Force) {
     Write-Host "Force mode enabled - will terminate existing processes" -ForegroundColor Yellow
+}
+if ($NoDevTools) {
+    Write-Host "DevTools disabled - running in UX evaluation mode" -ForegroundColor Yellow
 }
 Write-Host ""
 
@@ -99,14 +104,39 @@ function Stop-PortProcesses {
                     try {
                         $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
                         if ($process) {
-                            # Only kill processes that are likely ours (node, cargo, or q-deck related)
+                            # Check if this is a Q-Deck related process
                             $processName = $process.ProcessName.ToLower()
-                            if ($processName -match "(node|cargo|tauri|q-deck|vite)" -or $Force) {
-                                Write-Host "  Terminating process: $($process.ProcessName) (PID: $processId)" -ForegroundColor Yellow
+                            $commandLine = ""
+                            
+                            try {
+                                $commandLine = (Get-CimInstance Win32_Process -Filter "ProcessId = $processId" -ErrorAction SilentlyContinue).CommandLine
+                            }
+                            catch {
+                                # Ignore errors getting command line
+                            }
+                            
+                            # Only kill if it's clearly a Q-Deck development process
+                            $isQDeckProcess = $false
+                            
+                            # Check if it's node/vite running Q-Deck
+                            if ($processName -match "node" -and $commandLine -match "q-deck|vite.*1420|vite.*1421|vite.*1422") {
+                                $isQDeckProcess = $true
+                            }
+                            # Check if it's explicitly named q-deck
+                            elseif ($processName -match "q-deck") {
+                                $isQDeckProcess = $true
+                            }
+                            # Check if it's vite dev server
+                            elseif ($processName -match "vite" -and $commandLine -match "q-deck") {
+                                $isQDeckProcess = $true
+                            }
+                            
+                            if ($isQDeckProcess) {
+                                Write-Host "  Terminating Q-Deck process: $($process.ProcessName) (PID: $processId)" -ForegroundColor Yellow
                                 $process.Kill()
                                 Write-Host "  Successfully terminated" -ForegroundColor Green
                             } else {
-                                Write-Host "  Skipping non-development process: $($process.ProcessName) (PID: $processId)" -ForegroundColor Gray
+                                Write-Host "  Skipping non-Q-Deck process: $($process.ProcessName) (PID: $processId)" -ForegroundColor DarkGray
                             }
                         }
                     }
@@ -132,13 +162,7 @@ if (-not (Test-Command "node")) {
     exit 1
 }
 
-# Check if Rust is installed
-if (-not (Test-Command "cargo")) {
-    Write-Host "Error: Rust is not installed or not in PATH" -ForegroundColor Red
-    Write-Host "Please install Rust from https://rustup.rs/" -ForegroundColor Yellow
-    Read-Host "Press Enter to exit"
-    exit 1
-}
+# Note: Rust is no longer required for Electron version
 
 # Check if we're in the right directory
 if (-not (Test-Path "package.json")) {
@@ -185,38 +209,80 @@ function Stop-QDeckProcesses {
         Write-Host "No existing Q-Deck launcher processes found" -ForegroundColor Green
     }
     
-    # Also check for node/vite processes that might be hanging
-    $nodeProcesses = Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object {
-        $_.MainWindowTitle -match "vite|q-deck" -or 
-        $_.ProcessName -match "vite"
+    # Check for Q-Deck specific node/vite processes that might be hanging
+    if ($Force) {
+        Write-Host "Checking for hanging Q-Deck Node.js processes..." -ForegroundColor Yellow
+        $nodeProcesses = Get-Process -Name "node" -ErrorAction SilentlyContinue
+        
+        if ($nodeProcesses) {
+            foreach ($proc in $nodeProcesses) {
+                try {
+                    # Get command line to verify it's a Q-Deck process
+                    $commandLine = (Get-CimInstance Win32_Process -Filter "ProcessId = $($proc.Id)" -ErrorAction SilentlyContinue).CommandLine
+                    
+                    # Only kill if it's clearly running Q-Deck related code
+                    if ($commandLine -match "q-deck|vite.*1420|vite.*1421|vite.*1422|electron.*q-deck") {
+                        Write-Host "  Terminating Q-Deck Node process (PID: $($proc.Id))" -ForegroundColor Yellow
+                        $proc.Kill()
+                    }
+                    else {
+                        Write-Host "  Skipping non-Q-Deck Node process (PID: $($proc.Id))" -ForegroundColor DarkGray
+                    }
+                }
+                catch {
+                    # Ignore errors
+                }
+            }
+        }
     }
     
-    if ($nodeProcesses -and $Force) {
-        Write-Host "Terminating hanging Node.js/Vite processes..." -ForegroundColor Yellow
-        $nodeProcesses | ForEach-Object {
-            try {
-                Write-Host "  Terminating Node process ID: $($_.Id)" -ForegroundColor Gray
-                $_.Kill()
+    # Force cleanup of Q-Deck specific Electron processes only
+    if ($Force) {
+        Write-Host "Performing cleanup of Q-Deck Electron processes..." -ForegroundColor Yellow
+        
+        # Get all Electron processes
+        $electronProcesses = Get-Process -Name "electron" -ErrorAction SilentlyContinue
+        
+        if ($electronProcesses) {
+            foreach ($proc in $electronProcesses) {
+                try {
+                    # Check if this Electron process is related to Q-Deck
+                    # Method 1: Check command line arguments
+                    $commandLine = (Get-CimInstance Win32_Process -Filter "ProcessId = $($proc.Id)" -ErrorAction SilentlyContinue).CommandLine
+                    
+                    # Method 2: Check working directory
+                    $workingDir = $proc.Path
+                    
+                    # Only kill if it's clearly a Q-Deck process
+                    $isQDeckProcess = $false
+                    
+                    if ($commandLine -match "q-deck|Q-Deck") {
+                        $isQDeckProcess = $true
+                    }
+                    elseif ($proc.MainWindowTitle -match "q-deck|Q-Deck") {
+                        $isQDeckProcess = $true
+                    }
+                    elseif ($workingDir -and $workingDir -match "q-deck") {
+                        $isQDeckProcess = $true
+                    }
+                    
+                    if ($isQDeckProcess) {
+                        Write-Host "  Terminating Q-Deck Electron process: $($proc.ProcessName) (PID: $($proc.Id))" -ForegroundColor Gray
+                        $proc.Kill()
+                        Start-Sleep -Milliseconds 100
+                    }
+                    else {
+                        Write-Host "  Skipping non-Q-Deck Electron process (PID: $($proc.Id))" -ForegroundColor DarkGray
+                    }
+                }
+                catch {
+                    Write-Host "  Could not process Electron PID: $($proc.Id)" -ForegroundColor Red
+                }
             }
-            catch {
-                Write-Host "  Could not terminate Node process ID: $($_.Id)" -ForegroundColor Red
-            }
         }
-    }
-    
-    # Clean up any locked files in target directory
-    $targetDir = "src-tauri\target"
-    if (Test-Path $targetDir) {
-        Write-Host "Cleaning up build artifacts..." -ForegroundColor Yellow
-        try {
-            # Remove any .lock files
-            Get-ChildItem -Path $targetDir -Recurse -Filter "*.lock" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-            # Remove any .tmp files
-            Get-ChildItem -Path $targetDir -Recurse -Filter "*.tmp" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-        }
-        catch {
-            Write-Host "Warning: Could not clean all build artifacts" -ForegroundColor Yellow
-        }
+        
+        # Wait a moment for processes to fully terminate
+        Start-Sleep -Seconds 1
     }
 }
 
@@ -229,7 +295,6 @@ if (-not $NoCleanup) {
 Write-Host "Environment Check:" -ForegroundColor Cyan
 Write-Host "Node.js: $(node --version)" -ForegroundColor Gray
 Write-Host "npm: $(npm --version)" -ForegroundColor Gray
-Write-Host "Rust: $(cargo --version)" -ForegroundColor Gray
 Write-Host ""
 
 # Install dependencies
@@ -248,10 +313,10 @@ catch {
 }
 
 Write-Host ""
-Write-Host "Starting Tauri development server..." -ForegroundColor Green
+Write-Host "Starting Electron development server..." -ForegroundColor Green
 Write-Host "Press Ctrl+C to stop the application" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "Default hotkey: Ctrl+F12 to show overlay" -ForegroundColor Cyan
+Write-Host "Default hotkey: F11 to show overlay" -ForegroundColor Cyan
 Write-Host ""
 
 # Find available port for Vite dev server
@@ -268,21 +333,30 @@ Write-Host "Configuring development server to use port $availablePort..." -Foreg
 $env:VITE_PORT = $availablePort
 $env:PORT = $availablePort
 
+# Set DevTools flag
+if ($NoDevTools) {
+    $env:NO_DEVTOOLS = "true"
+    Write-Host "DevTools will be disabled" -ForegroundColor Yellow
+} else {
+    $env:NO_DEVTOOLS = "false"
+}
+
 Write-Host "Environment configured:" -ForegroundColor Green
 Write-Host "  VITE_PORT = $availablePort" -ForegroundColor Gray
 Write-Host "  HMR_PORT = $($availablePort + 1)" -ForegroundColor Gray
+Write-Host "  NO_DEVTOOLS = $env:NO_DEVTOOLS" -ForegroundColor Gray
 
 Write-Host ""
-Write-Host "Starting Tauri development server on port $availablePort..." -ForegroundColor Green
+Write-Host "Starting Electron development server on port $availablePort..." -ForegroundColor Green
 Write-Host "Press Ctrl+C to stop the application" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "Default hotkey: Ctrl+F12 to show overlay" -ForegroundColor Cyan
+Write-Host "Default hotkey: F11 to show overlay" -ForegroundColor Cyan
 Write-Host "Development server will be available at: http://localhost:$availablePort" -ForegroundColor Cyan
 Write-Host ""
 
 # Start the development server
 try {
-    npm run tauri dev
+    npm run electron:dev
 }
 catch {
     Write-Host "Error: Failed to start development server" -ForegroundColor Red

@@ -9,9 +9,13 @@
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   min-width: 160px;
+  max-width: 250px;
+  max-height: 80vh; /* Limit height to 80% of viewport */
   z-index: 99999;
   overflow: hidden;
   pointer-events: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .context-menu-header {
@@ -31,6 +35,28 @@
 
 .context-menu-items {
   padding: 0.5rem 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.context-menu-items::-webkit-scrollbar {
+  width: 6px;
+}
+
+.context-menu-items::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.context-menu-items::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.context-menu-items::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .context-menu-item {
