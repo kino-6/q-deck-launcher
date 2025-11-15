@@ -1,15 +1,48 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, screen, net } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain, screen, Tray, Menu, nativeImage } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import yaml from 'yaml';
-import { ActionExecutor } from './actions/ActionExecutor.js';
-import { registerAllHandlers } from './ipc/index.js';
-import { ProfileStateManager } from './ProfileStateManager.js';
+import { StartupTimer, LazyModuleLoader, ConfigCache, DeferredInitializer } from './startupOptimization.js';
+import { MemoryOptimizer } from './memoryOptimization.js';
+import logger from './logger.js';
+import autoUpdateManager from './autoUpdater.js';
+
+// Initialize startup timer
+const startupTimer = new StartupTimer();
+
+// Initialize lazy module loader
+const lazyLoader = new LazyModuleLoader();
+
+// Initialize config cache
+const configCache = new ConfigCache();
+
+// Initialize deferred initializer
+const deferredInit = new DeferredInitializer();
+
+// Initialize memory optimizer (will be configured after config is loaded)
+let memoryOptimizer = null;
+
+// Register lazy-loaded modules
+lazyLoader.register('ActionExecutor', async () => {
+  const { ActionExecutor } = await import('./actions/ActionExecutor.js');
+  return ActionExecutor;
+});
+
+lazyLoader.register('ProfileStateManager', async () => {
+  const { ProfileStateManager } = await import('./ProfileStateManager.js');
+  return ProfileStateManager;
+});
+
+lazyLoader.register('IpcHandlers', async () => {
+  const { registerAllHandlers } = await import('./ipc/index.js');
+  return registerAllHandlers;
+});
 
 // Simple logger (only logs in development)
 const isDev = process.env.NODE_ENV === 'development';
-const noDevTools = process.env.NO_DEVTOOLS === 'true';
+const isProduction = process.env.NODE_ENV === 'production';
+const noDevTools = process.env.NO_DEVTOOLS === 'true' || isProduction;
 const log = (...args) => isDev && console.log(...args);
 const warn = (...args) => console.warn(...args);
 const error = (...args) => console.error(...args);
@@ -25,12 +58,11 @@ log('Preload script path:', path.join(__dirname, 'preload.cjs'));
 let mainWindow = null;
 let overlayWindow = null;
 let config = null;
+let tray = null;
 
-// Initialize action executor
-const actionExecutor = new ActionExecutor();
-
-// Initialize profile state manager
-const profileStateManager = new ProfileStateManager();
+// Lazy-initialized modules
+let actionExecutor = null;
+let profileStateManager = null;
 
 // Determine config path (portable mode support)
 // Portable mode: config.yaml in application directory
@@ -91,6 +123,11 @@ async function extractIconFromExe(exePath) {
     
     log('Icon extracted and saved to:', iconPath);
     
+    // Record icon access for memory optimization
+    if (memoryOptimizer) {
+      memoryOptimizer.recordIconAccess(iconFileName);
+    }
+    
     // Return the relative path from userData
     return `icon-cache/${iconFileName}`;
   } catch (iconErr) {
@@ -99,28 +136,49 @@ async function extractIconFromExe(exePath) {
   }
 }
 
-// Load configuration
+// Load configuration with caching
 function loadConfig(mode = 'normal') {
+  startupTimer.mark('config-load-start');
+  
   try {
+    // Check cache first
+    const cachedConfig = configCache.get();
+    if (cachedConfig && mode === 'normal') {
+      config = cachedConfig;
+      log('Configuration loaded from cache');
+      startupTimer.mark('config-load-end');
+      startupTimer.measure('config-load', 'config-load-start', 'config-load-end');
+      return;
+    }
+
     // If init mode, always create default config without loading existing file
     if (mode === 'init') {
       config = createDefaultConfig();
+      configCache.set(config);
+      startupTimer.mark('config-load-end');
+      startupTimer.measure('config-load', 'config-load-start', 'config-load-end');
       return;
     }
 
     if (fs.existsSync(configPath)) {
       const fileContents = fs.readFileSync(configPath, 'utf8');
       config = yaml.parse(fileContents);
+      configCache.set(config);
       log('Configuration loaded');
     } else {
       // Create default config
       config = createDefaultConfig();
+      configCache.set(config);
       saveConfig();
     }
   } catch (err) {
     error('Failed to load config:', err);
     config = createDefaultConfig();
+    configCache.set(config);
   }
+  
+  startupTimer.mark('config-load-end');
+  startupTimer.measure('config-load', 'config-load-start', 'config-load-end');
 }
 
 // Save configuration
@@ -128,9 +186,12 @@ function saveConfig() {
   try {
     const yamlStr = yaml.stringify(config);
     fs.writeFileSync(configPath, yamlStr, 'utf8');
+    configCache.set(config); // Update cache
     log('Configuration saved');
+    logger.logConfigSave(true);
   } catch (err) {
     error('Failed to save config:', err);
+    logger.logConfigSave(false, { error: err.message });
   }
 }
 
@@ -228,8 +289,10 @@ function createDefaultConfig() {
   };
 }
 
-// Create main window (settings window)
+// Create main window (settings window) - deferred
 function createMainWindow() {
+  startupTimer.mark('main-window-start');
+  
   mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
@@ -257,10 +320,15 @@ function createMainWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+  
+  startupTimer.mark('main-window-end');
+  startupTimer.measure('main-window-create', 'main-window-start', 'main-window-end');
 }
 
-// Create overlay window
+// Create overlay window - optimized for fast display
 function createOverlayWindow() {
+  startupTimer.mark('overlay-window-start');
+  
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width } = primaryDisplay.workAreaSize;
 
@@ -325,6 +393,9 @@ function createOverlayWindow() {
     // No need to inject code here - the React app already listens for IPC messages
     
     console.log('✁EOverlay ready - file drop handling is active via IPC');
+    
+    startupTimer.mark('overlay-window-end');
+    startupTimer.measure('overlay-window-create', 'overlay-window-start', 'overlay-window-end');
   });
 
   overlayWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
@@ -362,7 +433,7 @@ function createOverlayWindow() {
   // This allows drag and drop from external applications without the overlay closing
 }
 
-// Show overlay
+// Show overlay with smooth dropdown animation
 function showOverlay() {
   log('showOverlay called');
   if (!overlayWindow) {
@@ -371,51 +442,139 @@ function showOverlay() {
   }
   
   if (overlayWindow) {
-    log('Showing overlay window...');
-    // Optimize show sequence to prevent flicker
-    // 1. Ensure window is ready before showing
-    if (overlayWindow.webContents.isLoading()) {
-      log('Window still loading, waiting for ready-to-show...');
-      overlayWindow.once('ready-to-show', () => {
-        // Use setOpacity to fade in (reduces flicker on Windows)
-        overlayWindow.setOpacity(0);
+    log('Showing overlay window with dropdown animation...');
+    
+    const performDropdownAnimation = () => {
+      const primaryDisplay = screen.getPrimaryDisplay();
+      const { width } = primaryDisplay.workAreaSize;
+      const windowWidth = config.ui.window.width_px;
+      const windowHeight = config.ui.window.height_px;
+      const finalX = Math.floor((width - windowWidth) / 2);
+      const finalY = 50;
+      
+      // Get animation settings from config
+      const animationEnabled = config.ui.window.animation?.enabled !== false;
+      const animationDuration = config.ui.window.animation?.duration_ms || 150;
+      
+      if (!animationEnabled) {
+        // No animation - just show at final position
+        overlayWindow.setPosition(finalX, finalY);
+        overlayWindow.setOpacity(1);
         overlayWindow.show();
         overlayWindow.setAlwaysOnTop(true, 'screen-saver');
         overlayWindow.focus();
-        // Quick fade in
-        setTimeout(() => {
-          if (overlayWindow) overlayWindow.setOpacity(1);
-        }, 16); // One frame at 60fps
-      });
-    } else {
-      // Window is already loaded, show with quick fade
-      overlayWindow.setOpacity(0);
+        return;
+      }
+      
+      // Start position: above the screen (hidden)
+      const startY = -windowHeight - 20;
+      
+      // Set initial position and opacity
+      overlayWindow.setPosition(finalX, startY);
+      overlayWindow.setOpacity(1);
       overlayWindow.show();
       overlayWindow.setAlwaysOnTop(true, 'screen-saver');
       overlayWindow.focus();
-      // Quick fade in
-      setTimeout(() => {
-        if (overlayWindow) overlayWindow.setOpacity(1);
-      }, 16); // One frame at 60fps
+      
+      // Animate dropdown using easing function
+      const startTime = Date.now();
+      const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+      
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / animationDuration, 1);
+        const easedProgress = easeOutCubic(progress);
+        
+        // Calculate current Y position
+        const currentY = Math.round(startY + (finalY - startY) * easedProgress);
+        
+        if (overlayWindow && !overlayWindow.isDestroyed()) {
+          overlayWindow.setPosition(finalX, currentY);
+          
+          if (progress < 1) {
+            // Continue animation
+            setTimeout(animate, 16); // ~60fps
+          } else {
+            log('Dropdown animation complete');
+          }
+        }
+      };
+      
+      // Start animation
+      animate();
+    };
+    
+    // Ensure window is ready before animating
+    if (overlayWindow.webContents.isLoading()) {
+      log('Window still loading, waiting for ready-to-show...');
+      overlayWindow.once('ready-to-show', performDropdownAnimation);
+    } else {
+      performDropdownAnimation();
     }
-    log('Overlay window shown and focused');
+    
+    log('Overlay window animation started');
   } else {
     error('Failed to create overlay window');
   }
 }
 
-// Hide overlay
+// Hide overlay with smooth slide-up animation
 function hideOverlay() {
   if (overlayWindow && overlayWindow.isVisible()) {
-    // Quick fade out before hiding (reduces flicker)
-    overlayWindow.setOpacity(0);
-    setTimeout(() => {
-      if (overlayWindow && overlayWindow.isVisible()) {
-        overlayWindow.hide();
-        // Reset opacity for next show
-        overlayWindow.setOpacity(1);
+    log('Hiding overlay with slide-up animation...');
+    
+    // Get animation settings from config
+    const animationEnabled = config.ui.window.animation?.enabled !== false;
+    const animationDuration = config.ui.window.animation?.duration_ms || 150;
+    
+    if (!animationEnabled) {
+      // No animation - just hide immediately
+      overlayWindow.hide();
+      return;
+    }
+    
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width } = primaryDisplay.workAreaSize;
+    const windowWidth = config.ui.window.width_px;
+    const windowHeight = config.ui.window.height_px;
+    const finalX = Math.floor((width - windowWidth) / 2);
+    
+    // Get current position
+    const [currentX, currentY] = overlayWindow.getPosition();
+    
+    // End position: above the screen (hidden)
+    const endY = -windowHeight - 20;
+    
+    // Animate slide-up using easing function
+    const startTime = Date.now();
+    const easeInCubic = (t) => t * t * t;
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / animationDuration, 1);
+      const easedProgress = easeInCubic(progress);
+      
+      // Calculate current Y position
+      const newY = Math.round(currentY + (endY - currentY) * easedProgress);
+      
+      if (overlayWindow && !overlayWindow.isDestroyed() && overlayWindow.isVisible()) {
+        overlayWindow.setPosition(finalX, newY);
+        
+        if (progress < 1) {
+          // Continue animation
+          setTimeout(animate, 16); // ~60fps
+        } else {
+          // Animation complete - hide window
+          if (overlayWindow && !overlayWindow.isDestroyed()) {
+            overlayWindow.hide();
+            log('Slide-up animation complete');
+          }
+        }
       }
-    }, 16); // One frame at 60fps
+    };
+    
+    // Start animation
+    animate();
   }
 }
 
@@ -425,6 +584,98 @@ function toggleOverlay() {
     hideOverlay();
   } else {
     showOverlay();
+  }
+}
+
+// Update tray tooltip with current profile name
+function updateTrayTooltip() {
+  if (!tray) {
+    return;
+  }
+  
+  try {
+    let tooltipText = 'Q-Deck Launcher';
+    
+    // Add current profile name if available
+    if (config && profileStateManager) {
+      const currentProfile = profileStateManager.getCurrentProfile(config);
+      if (currentProfile && currentProfile.name) {
+        tooltipText += ` - ${currentProfile.name}`;
+      }
+    }
+    
+    tray.setToolTip(tooltipText);
+    log('Tray tooltip updated:', tooltipText);
+  } catch (err) {
+    error('Failed to update tray tooltip:', err);
+  }
+}
+
+// Create system tray icon
+function createTray() {
+  try {
+    // Use the existing 32x32 icon from src-tauri/icons
+    const iconPath = path.join(__dirname, '../src-tauri/icons/32x32.png');
+    
+    // Check if icon exists
+    if (!fs.existsSync(iconPath)) {
+      error('Tray icon not found at:', iconPath);
+      return;
+    }
+    
+    // Create native image from icon
+    const icon = nativeImage.createFromPath(iconPath);
+    
+    // Create tray
+    tray = new Tray(icon);
+    
+    // Set initial tooltip (will be updated with profile name later)
+    updateTrayTooltip();
+    
+    // Create context menu
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Show/Hide Overlay',
+        click: () => {
+          log('Tray menu: Toggle overlay');
+          toggleOverlay();
+        }
+      },
+      {
+        label: 'Settings',
+        click: () => {
+          log('Tray menu: Open settings');
+          if (!mainWindow) {
+            createMainWindow();
+          }
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        click: () => {
+          log('Tray menu: Quit application');
+          app.quit();
+        }
+      }
+    ]);
+    
+    // Set context menu (right-click)
+    tray.setContextMenu(contextMenu);
+    
+    // Handle left-click to toggle overlay
+    tray.on('click', () => {
+      log('Tray icon clicked: Toggle overlay');
+      toggleOverlay();
+    });
+    
+    log('System tray icon created successfully');
+    logger.info('System tray icon created');
+  } catch (err) {
+    error('Failed to create system tray icon:', err);
+    logger.error('Failed to create system tray icon', { error: err.message });
   }
 }
 
@@ -443,8 +694,10 @@ function registerHotkeys() {
 
       if (success) {
         console.log(`Hotkey ${hotkey} registered successfully`);
+        logger.logHotkeyRegistration(hotkey, true);
       } else {
         console.error(`Failed to register hotkey ${hotkey}`);
+        logger.logHotkeyRegistration(hotkey, false);
       }
     });
   }
@@ -461,6 +714,10 @@ function registerHotkeys() {
           
           if (result) {
             console.log(`Switched to profile: ${profile.name} (index: ${index})`);
+            logger.logProfileSwitch(profile.name, index);
+            
+            // Update tray tooltip with new profile name
+            updateTrayTooltip();
             
             // Show overlay if it's not visible
             if (!overlayWindow || !overlayWindow.isVisible()) {
@@ -473,13 +730,16 @@ function registerHotkeys() {
             }
           } else {
             console.error(`Failed to switch to profile: ${profile.name}`);
+            logger.error('Failed to switch profile', { profile_name: profile.name, profile_index: index });
           }
         });
 
         if (success) {
           console.log(`Profile hotkey ${profile.hotkey} registered for profile: ${profile.name}`);
+          logger.logHotkeyRegistration(profile.hotkey, true, { profile_name: profile.name });
         } else {
           console.error(`Failed to register profile hotkey ${profile.hotkey} for profile: ${profile.name}`);
+          logger.logHotkeyRegistration(profile.hotkey, false, { profile_name: profile.name });
         }
       }
     });
@@ -527,31 +787,128 @@ app.on('web-contents-created', (_event, contents) => {
   });
 });
 
-// App ready
-app.whenReady().then(() => {
+// App ready - optimized startup sequence
+app.whenReady().then(async () => {
+  startupTimer.mark('app-ready');
   log('App is ready');
   
-  // Load configuration
+  // Initialize logger for production
+  logger.initialize();
+  
+  // Critical path: Load configuration (fast with caching)
+  startupTimer.mark('critical-start');
   loadConfig();
+  startupTimer.mark('critical-config-done');
   
-  // Create windows
-  createMainWindow();
+  // Critical path: Load lazy modules (needed for IPC handlers)
+  startupTimer.mark('lazy-modules-start');
+  const ActionExecutorClass = await lazyLoader.load('ActionExecutor');
+  actionExecutor = new ActionExecutorClass();
+  
+  const ProfileStateManagerClass = await lazyLoader.load('ProfileStateManager');
+  profileStateManager = new ProfileStateManagerClass();
+  startupTimer.mark('lazy-modules-end');
+  startupTimer.measure('lazy-modules-load', 'lazy-modules-start', 'lazy-modules-end');
+  
+  // Critical path: Register IPC handlers (must be ready before overlay window loads)
+  startupTimer.mark('ipc-handlers-start');
+  const registerAllHandlers = await lazyLoader.load('IpcHandlers');
+  registerAllHandlers(ipcMain, {
+    actionExecutor,
+    configManager: {
+      getConfig: () => config,
+      saveConfig: (newConfig) => {
+        config = newConfig;
+        saveConfig();
+      },
+      registerHotkeys
+    },
+    overlayManager: {
+      showOverlay,
+      hideOverlay,
+      toggleOverlay
+    },
+    utilityManager: {
+      extractIcon: extractIconFromExe,
+      getIconPath: (relativePath) => path.join(app.getPath('userData'), relativePath)
+    },
+    profileStateManager,
+    app,
+    autoUpdateManager: isProduction ? autoUpdateManager : null
+  });
+  log('IPC handlers registered');
+  startupTimer.mark('ipc-handlers-end');
+  startupTimer.measure('ipc-handlers-register', 'ipc-handlers-start', 'ipc-handlers-end');
+  
+  // Update tray tooltip with current profile name
+  updateTrayTooltip();
+  
+  // Critical path: Create overlay window (needed for hotkey)
   createOverlayWindow();
+  startupTimer.mark('critical-overlay-done');
   
-  // Register hotkeys
+  // Critical path: Register hotkeys (must be ready immediately)
   registerHotkeys();
+  startupTimer.mark('critical-hotkeys-done');
+  startupTimer.measure('critical-path', 'critical-start', 'critical-hotkeys-done');
   
-  // Show main window in development
-  if (process.env.NODE_ENV === 'development') {
-    // mainWindow.show();
+  // Create system tray icon
+  createTray();
+  
+  // Defer non-critical initialization
+  deferredInit.defer('main-window', () => {
+    createMainWindow();
+    if (process.env.NODE_ENV === 'development') {
+      // mainWindow.show();
+    }
+  }, 100); // Delay 100ms
+  
+  // Execute all deferred tasks
+  await deferredInit.executeAll();
+  
+  // Initialize memory optimizer after config is loaded
+  deferredInit.defer('memory-optimizer', () => {
+    memoryOptimizer = new MemoryOptimizer(iconCachePath);
+    memoryOptimizer.start();
+    log('Memory optimizer initialized');
+  }, 500); // Delay 500ms to not impact startup
+  
+  // Initialize auto-updater (only in production)
+  if (isProduction) {
+    deferredInit.defer('auto-updater', () => {
+      autoUpdateManager.startAutoUpdateChecks();
+      log('Auto-updater initialized');
+    }, 10000); // Delay 10s to not impact startup
+  }
+  
+  startupTimer.mark('app-ready-complete');
+  startupTimer.measure('total-startup', 'app-start', 'app-ready-complete');
+  
+  // Report startup performance
+  const report = startupTimer.report();
+  
+  // Log startup performance
+  logger.logStartup(report.totalTime, {
+    critical_path_ms: report.measures['critical-path'] || 0,
+    config_load_ms: report.measures['config-load'] || 0
+  });
+  
+  // Warn if startup is too slow
+  if (report.totalTime > 1000) {
+    warn(`⚠️ Startup time (${report.totalTime}ms) exceeds target of 1000ms`);
+    logger.warn('Startup time exceeds target', { startup_time_ms: report.totalTime, target_ms: 1000 });
+  } else {
+    log(`✅ Startup time: ${report.totalTime}ms (target: <1000ms)`);
   }
 });
 
-// Quit when all windows are closed
+// Don't quit when all windows are closed - keep running in system tray
+// The app will only quit when user selects "Quit" from tray menu
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  // On macOS, keep the app running in the dock
+  // On Windows/Linux, keep the app running in the system tray
+  // Do nothing - app continues running
+  log('All windows closed, but app continues running in system tray');
 });
 
 app.on('activate', () => {
@@ -563,30 +920,48 @@ app.on('activate', () => {
 // Unregister all shortcuts before quit
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  
+  // Stop memory optimizer
+  if (memoryOptimizer) {
+    memoryOptimizer.stop();
+  }
+  
+  // Shutdown logger (flush remaining logs)
+  logger.shutdown();
 });
 
-// IPC Handlers - Register all handlers using modular approach
-registerAllHandlers(ipcMain, {
-  actionExecutor,
-  configManager: {
-    getConfig: () => config,
-    saveConfig: (newConfig) => {
-      config = newConfig;
-      saveConfig();
-    },
-    registerHotkeys
-  },
-  overlayManager: {
-    showOverlay,
-    hideOverlay,
-    toggleOverlay
-  },
-  utilityManager: {
-    extractIcon: extractIconFromExe,
-    getIconPath: (relativePath) => path.join(app.getPath('userData'), relativePath)
-  },
-  profileStateManager,
-  app // Pass app instance for file icon extraction
+// IPC Handlers are now registered lazily in app.whenReady()
+
+// Memory statistics IPC handler
+ipcMain.handle('get-memory-stats', async () => {
+  if (!memoryOptimizer) {
+    return null;
+  }
+  
+  return memoryOptimizer.getStats();
+});
+
+// Manual memory optimization IPC handler
+ipcMain.handle('optimize-memory', async () => {
+  if (!memoryOptimizer) {
+    return null;
+  }
+  
+  return memoryOptimizer.optimize();
+});
+
+// Global error handlers for production logging
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  logger.logUnhandledError(error, { type: 'uncaughtException' });
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  logger.logUnhandledError(
+    reason instanceof Error ? reason : new Error(String(reason)),
+    { type: 'unhandledRejection' }
+  );
 });
 
 log('Electron main process started');

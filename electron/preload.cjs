@@ -78,6 +78,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getIconPath: (relativePath) => ipcRenderer.invoke('get-icon-path', relativePath),
   extractFileIcon: (filePath) => ipcRenderer.invoke('extract-file-icon', filePath),
   
+  // Memory optimization
+  getMemoryStats: () => ipcRenderer.invoke('get-memory-stats'),
+  optimizeMemory: () => ipcRenderer.invoke('optimize-memory'),
+  
   // Platform info
   platform: process.platform,
   isElectron: true

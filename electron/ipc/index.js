@@ -10,6 +10,7 @@ import { registerConfigHandlers } from './configHandlers.js';
 import { registerOverlayHandlers } from './overlayHandlers.js';
 import { registerProfileHandlers } from './profileHandlers.js';
 import { registerUtilityHandlers } from './utilityHandlers.js';
+import { registerUpdateHandlers } from './updateHandlers.js';
 
 /**
  * Register all IPC handlers
@@ -22,6 +23,7 @@ import { registerUtilityHandlers } from './utilityHandlers.js';
  * @param {Object} managers.utilityManager - Utility manager with extractIcon, getIconPath methods
  * @param {Object} managers.profileStateManager - Profile state manager instance
  * @param {Object} managers.app - Electron app instance for file icon extraction
+ * @param {Object} managers.autoUpdateManager - Auto-update manager instance (optional, only in production)
  */
 export function registerAllHandlers(ipcMain, managers) {
   const {
@@ -30,7 +32,8 @@ export function registerAllHandlers(ipcMain, managers) {
     overlayManager,
     utilityManager,
     profileStateManager,
-    app
+    app,
+    autoUpdateManager
   } = managers;
   
   // Register all handler groups
@@ -39,6 +42,11 @@ export function registerAllHandlers(ipcMain, managers) {
   registerOverlayHandlers(ipcMain, overlayManager);
   registerProfileHandlers(ipcMain, configManager.getConfig, profileStateManager);
   registerUtilityHandlers(ipcMain, utilityManager, app);
+  
+  // Register update handlers (only if autoUpdateManager is provided)
+  if (autoUpdateManager) {
+    registerUpdateHandlers(ipcMain, autoUpdateManager);
+  }
   
   console.log('✅ All IPC handlers registered successfully');
 }

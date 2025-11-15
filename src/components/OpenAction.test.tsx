@@ -404,4 +404,168 @@ describe('Open Action Tests', () => {
       });
     });
   });
+
+  describe('URL Opening (Browser)', () => {
+    it('should open HTTP URL in browser', async () => {
+      const user = userEvent.setup();
+      
+      const button: ActionButtonType = {
+        position: { row: 1, col: 1 },
+        action_type: 'Open',
+        label: 'Example Site',
+        icon: '🌐',
+        config: {
+          target: 'http://example.com'
+        }
+      };
+
+      render(<ActionButton button={button} />);
+      
+      const buttonElement = screen.getByRole('button');
+      await user.click(buttonElement);
+
+      await waitFor(() => {
+        expect(mockExecuteAction).toHaveBeenCalledWith({
+          type: 'Open',
+          label: 'Example Site',
+          target: 'http://example.com'
+        });
+      });
+    });
+
+    it('should open HTTPS URL in browser', async () => {
+      const user = userEvent.setup();
+      
+      const button: ActionButtonType = {
+        position: { row: 1, col: 1 },
+        action_type: 'Open',
+        label: 'Google',
+        icon: '🔍',
+        config: {
+          target: 'https://www.google.com'
+        }
+      };
+
+      render(<ActionButton button={button} />);
+      
+      const buttonElement = screen.getByRole('button');
+      await user.click(buttonElement);
+
+      await waitFor(() => {
+        expect(mockExecuteAction).toHaveBeenCalledWith({
+          type: 'Open',
+          label: 'Google',
+          target: 'https://www.google.com'
+        });
+      });
+    });
+
+    it('should open localhost URL', async () => {
+      const user = userEvent.setup();
+      
+      const button: ActionButtonType = {
+        position: { row: 1, col: 1 },
+        action_type: 'Open',
+        label: 'Dev Server',
+        icon: '🖥️',
+        config: {
+          target: 'http://localhost:3000'
+        }
+      };
+
+      render(<ActionButton button={button} />);
+      
+      const buttonElement = screen.getByRole('button');
+      await user.click(buttonElement);
+
+      await waitFor(() => {
+        expect(mockExecuteAction).toHaveBeenCalledWith({
+          type: 'Open',
+          label: 'Dev Server',
+          target: 'http://localhost:3000'
+        });
+      });
+    });
+
+    it('should open URL with query parameters', async () => {
+      const user = userEvent.setup();
+      
+      const button: ActionButtonType = {
+        position: { row: 1, col: 1 },
+        action_type: 'Open',
+        label: 'Search',
+        icon: '🔎',
+        config: {
+          target: 'https://www.google.com/search?q=electron'
+        }
+      };
+
+      render(<ActionButton button={button} />);
+      
+      const buttonElement = screen.getByRole('button');
+      await user.click(buttonElement);
+
+      await waitFor(() => {
+        expect(mockExecuteAction).toHaveBeenCalledWith({
+          type: 'Open',
+          label: 'Search',
+          target: 'https://www.google.com/search?q=electron'
+        });
+      });
+    });
+
+    it('should open GitHub repository URL', async () => {
+      const user = userEvent.setup();
+      
+      const button: ActionButtonType = {
+        position: { row: 1, col: 1 },
+        action_type: 'Open',
+        label: 'GitHub Repo',
+        icon: '📦',
+        config: {
+          target: 'https://github.com/electron/electron'
+        }
+      };
+
+      render(<ActionButton button={button} />);
+      
+      const buttonElement = screen.getByRole('button');
+      await user.click(buttonElement);
+
+      await waitFor(() => {
+        expect(mockExecuteAction).toHaveBeenCalledWith({
+          type: 'Open',
+          label: 'GitHub Repo',
+          target: 'https://github.com/electron/electron'
+        });
+      });
+    });
+
+    it('should open URL with hash fragment', async () => {
+      const user = userEvent.setup();
+      
+      const button: ActionButtonType = {
+        position: { row: 1, col: 1 },
+        action_type: 'Open',
+        label: 'Docs Section',
+        icon: '📖',
+        config: {
+          target: 'https://github.com/electron/electron#readme'
+        }
+      };
+
+      render(<ActionButton button={button} />);
+      
+      const buttonElement = screen.getByRole('button');
+      await user.click(buttonElement);
+
+      await waitFor(() => {
+        expect(mockExecuteAction).toHaveBeenCalledWith({
+          type: 'Open',
+          label: 'Docs Section',
+          target: 'https://github.com/electron/electron#readme'
+        });
+      });
+    });
+  });
 });

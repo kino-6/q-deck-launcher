@@ -29,13 +29,23 @@ export const PageIndicator: React.FC<PageIndicatorProps> = ({ className = '' }) 
     loadNavigationContext();
 
     // Listen for profile changes to update the indicator
-    const unsubscribe = tauriAPI.onProfileChanged(() => {
-      loadNavigationContext();
-    });
+    // Note: onProfileChanged may not be implemented in all platforms
+    let unsubscribe: (() => void) | undefined;
+    try {
+      if (tauriAPI.onProfileChanged && typeof tauriAPI.onProfileChanged === 'function') {
+        unsubscribe = tauriAPI.onProfileChanged(() => {
+          loadNavigationContext();
+        }) as unknown as (() => void);
+      }
+    } catch (e) {
+      // Ignore if not implemented
+    }
 
     return () => {
       // Cleanup subscription if it exists
-      unsubscribe?.();
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
     };
   }, []);
 

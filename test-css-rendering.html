@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSS Rendering Test - Q-Deck Grid</title>
+  <style>
+    /* Import Grid.css styles for testing */
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #1a1a1a;
+      color: white;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .test-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .test-section {
+      margin-bottom: 40px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+    }
+
+    .test-section h2 {
+      margin-top: 0;
+      color: #646cff;
+    }
+
+    .test-result {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    .test-result.pass {
+      background: rgba(34, 197, 94, 0.2);
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      color: #22c55e;
+    }
+
+    .test-result.fail {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #ef4444;
+    }
+
+    .test-result.info {
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      color: #3b82f6;
+    }
+
+    /* Simulated Grid Styles */
+    .grid-demo {
+      display: grid;
+      grid-template-rows: repeat(var(--grid-rows, 3), var(--cell-size, 96px));
+      grid-template-columns: repeat(var(--grid-cols, 4), var(--cell-size, 96px));
+      gap: var(--gap-size, 8px);
+      justify-content: center;
+      align-content: center;
+      background: rgba(30, 30, 30, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1rem;
+      margin: 20px 0;
+    }
+
+    .grid-cell-demo {
+      width: var(--cell-size, 96px);
+      height: var(--cell-size, 96px);
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px dashed rgba(255, 255, 255, 0.35);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.8rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin: 20px 0;
+      flex-wrap: wrap;
+    }
+
+    .controls button {
+      padding: 8px 16px;
+      background: rgba(100, 108, 255, 0.2);
+      border: 1px solid rgba(100, 108, 255, 0.4);
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .controls button:hover {
+      background: rgba(100, 108, 255, 0.3);
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    .info-item {
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+    }
+
+    .info-label {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 4px;
+    }
+
+    .info-value {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #646cff;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <h1>🎨 CSS Rendering Test - Q-Deck Grid</h1>
+    
+    <!-- System Information -->
+    <div class="test-section">
+      <h2>System Information</h2>
+      <div class="info-grid" id="systemInfo"></div>
+    </div>
+
+    <!-- CSS Variable Tests -->
+    <div class="test-section">
+      <h2>CSS Variable Tests</h2>
+      <div id="cssVariableTests"></div>
+    </div>
+
+    <!-- Grid Rendering Test -->
+    <div class="test-section">
+      <h2>Grid Rendering Test</h2>
+      <div class="controls">
+        <button onclick="setGridSize(2, 2)">2x2 Grid</button>
+        <button onclick="setGridSize(3, 3)">3x3 Grid</button>
+        <button onclick="setGridSize(4, 4)">4x4 Grid</button>
+        <button onclick="setGridSize(5, 5)">5x5 Grid</button>
+        <button onclick="setGridSize(3, 6)">3x6 Grid</button>
+      </div>
+      <div class="grid-demo" id="gridDemo"></div>
+    </div>
+
+    <!-- Viewport Tests -->
+    <div class="test-section">
+      <h2>Viewport and DPI Tests</h2>
+      <div id="viewportTests"></div>
+    </div>
+
+    <!-- Z-Index Tests -->
+    <div class="test-section">
+      <h2>Z-Index and Visibility Tests</h2>
+      <div id="zIndexTests"></div>
+    </div>
+  </div>
+
+  <script>
+    // System Information
+    function displaySystemInfo() {
+      const info = {
+        'Screen Width': `${window.screen.width}px`,
+        'Screen Height': `${window.screen.height}px`,
+        'Viewport Width': `${window.innerWidth}px`,
+        'Viewport Height': `${window.innerHeight}px`,
+        'Device Pixel Ratio': window.devicePixelRatio,
+        'Color Depth': `${window.screen.colorDepth} bits`,
+        'Orientation': window.screen.orientation?.type || 'unknown',
+      };
+
+      const container = document.getElementById('systemInfo');
+      container.innerHTML = Object.entries(info).map(([label, value]) => `
+        <div class="info-item">
+          <div class="info-label">${label}</div>
+          <div class="info-value">${value}</div>
+        </div>
+      `).join('');
+    }
+
+    // CSS Variable Tests
+    function testCSSVariables() {
+      const container = document.getElementById('cssVariableTests');
+      const tests = [];
+
+      // Test if CSS variables can be set and read
+      const testElement = document.createElement('div');
+      testElement.style.setProperty('--test-var', '100px');
+      document.body.appendChild(testElement);
+      
+      const computedStyle = getComputedStyle(testElement);
+      const testValue = computedStyle.getPropertyValue('--test-var');
+      
+      if (testValue.trim() === '100px') {
+        tests.push({ pass: true, message: 'CSS variables are supported' });
+      } else {
+        tests.push({ pass: false, message: 'CSS variables are NOT supported' });
+      }
+      
+      document.body.removeChild(testElement);
+
+      // Test CSS Grid support
+      const gridSupport = CSS.supports('display', 'grid');
+      tests.push({ 
+        pass: gridSupport, 
+        message: gridSupport ? 'CSS Grid is supported' : 'CSS Grid is NOT supported' 
+      });
+
+      // Test backdrop-filter support
+      const backdropSupport = CSS.supports('backdrop-filter', 'blur(10px)') || 
+                             CSS.supports('-webkit-backdrop-filter', 'blur(10px)');
+      tests.push({ 
+        pass: backdropSupport, 
+        message: backdropSupport ? 'Backdrop filter is supported' : 'Backdrop filter is NOT supported' 
+      });
+
+      container.innerHTML = tests.map(test => `
+        <div class="test-result ${test.pass ? 'pass' : 'fail'}">
+          ${test.pass ? '✓' : '✗'} ${test.message}
+        </div>
+      `).join('');
+    }
+
+    // Grid Rendering
+    function setGridSize(rows, cols) {
+      const grid = document.getElementById('gridDemo');
+      const cellSize = calculateOptimalCellSize(rows, cols);
+      const gapSize = Math.max(4, Math.round(cellSize / 12));
+
+      grid.style.setProperty('--grid-rows', rows);
+      grid.style.setProperty('--grid-cols', cols);
+      grid.style.setProperty('--cell-size', `${cellSize}px`);
+      grid.style.setProperty('--gap-size', `${gapSize}px`);
+
+      // Clear and recreate cells
+      grid.innerHTML = '';
+      for (let i = 0; i < rows * cols; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'grid-cell-demo';
+        cell.textContent = i + 1;
+        grid.appendChild(cell);
+      }
+
+      // Update info
+      document.getElementById('viewportTests').innerHTML = `
+        <div class="test-result info">
+          Grid: ${rows}x${cols} | Cell Size: ${cellSize}px | Gap: ${gapSize}px
+        </div>
+        <div class="test-result info">
+          Total Width: ${cols * cellSize + (cols - 1) * gapSize}px | 
+          Total Height: ${rows * cellSize + (rows - 1) * gapSize}px
+        </div>
+      `;
+    }
+
+    function calculateOptimalCellSize(rows, cols) {
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const pixelRatio = window.devicePixelRatio;
+      const baseGapSize = 8;
+
+      const dpiAdjustment = pixelRatio > 1.5 ? 0.88 : 0.9;
+      const availableWidth = viewportWidth * dpiAdjustment;
+      const availableHeight = viewportHeight * (dpiAdjustment - 0.03);
+
+      const maxCellWidth = (availableWidth - (cols - 1) * baseGapSize) / cols;
+      const maxCellHeight = (availableHeight - (rows - 1) * baseGapSize) / rows;
+
+      const calculatedSize = Math.min(maxCellWidth, maxCellHeight);
+
+      const minSize = pixelRatio > 1.5 ? 72 : 64;
+      const maxSize = pixelRatio > 1.5 ? 140 : 128;
+
+      return Math.max(minSize, Math.min(maxSize, Math.floor(calculatedSize)));
+    }
+
+    // Viewport Tests
+    function testViewport() {
+      const container = document.getElementById('viewportTests');
+      const tests = [];
+
+      // Test viewport units
+      const testDiv = document.createElement('div');
+      testDiv.style.width = '50vw';
+      testDiv.style.height = '50vh';
+      document.body.appendChild(testDiv);
+
+      const rect = testDiv.getBoundingClientRect();
+      const expectedWidth = window.innerWidth * 0.5;
+      const expectedHeight = window.innerHeight * 0.5;
+
+      if (Math.abs(rect.width - expectedWidth) < 1) {
+        tests.push({ pass: true, message: 'Viewport width (vw) works correctly' });
+      } else {
+        tests.push({ pass: false, message: 'Viewport width (vw) calculation error' });
+      }
+
+      if (Math.abs(rect.height - expectedHeight) < 1) {
+        tests.push({ pass: true, message: 'Viewport height (vh) works correctly' });
+      } else {
+        tests.push({ pass: false, message: 'Viewport height (vh) calculation error' });
+      }
+
+      document.body.removeChild(testDiv);
+
+      container.innerHTML += tests.map(test => `
+        <div class="test-result ${test.pass ? 'pass' : 'fail'}">
+          ${test.pass ? '✓' : '✗'} ${test.message}
+        </div>
+      `).join('');
+    }
+
+    // Z-Index Tests
+    function testZIndex() {
+      const container = document.getElementById('zIndexTests');
+      const tests = [];
+
+      // Create test elements with different z-index values
+      const overlay = document.createElement('div');
+      overlay.style.position = 'fixed';
+      overlay.style.zIndex = '9999';
+      document.body.appendChild(overlay);
+
+      const modal = document.createElement('div');
+      modal.style.position = 'fixed';
+      modal.style.zIndex = '10000';
+      document.body.appendChild(modal);
+
+      const overlayZ = parseInt(getComputedStyle(overlay).zIndex);
+      const modalZ = parseInt(getComputedStyle(modal).zIndex);
+
+      tests.push({
+        pass: overlayZ === 9999,
+        message: `Overlay z-index: ${overlayZ} (expected 9999)`
+      });
+
+      tests.push({
+        pass: modalZ === 10000,
+        message: `Modal z-index: ${modalZ} (expected 10000)`
+      });
+
+      tests.push({
+        pass: modalZ > overlayZ,
+        message: modalZ > overlayZ ? 'Modal appears above overlay' : 'Z-index stacking error'
+      });
+
+      document.body.removeChild(overlay);
+      document.body.removeChild(modal);
+
+      container.innerHTML = tests.map(test => `
+        <div class="test-result ${test.pass ? 'pass' : 'fail'}">
+          ${test.pass ? '✓' : '✗'} ${test.message}
+        </div>
+      `).join('');
+    }
+
+    // Initialize tests
+    window.addEventListener('DOMContentLoaded', () => {
+      displaySystemInfo();
+      testCSSVariables();
+      setGridSize(3, 4); // Default grid
+      testViewport();
+      testZIndex();
+    });
+
+    // Update on resize
+    window.addEventListener('resize', () => {
+      displaySystemInfo();
+      const grid = document.getElementById('gridDemo');
+      const rows = parseInt(grid.style.getPropertyValue('--grid-rows')) || 3;
+      const cols = parseInt(grid.style.getPropertyValue('--grid-cols')) || 4;
+      setGridSize(rows, cols);
+    });
+  </script>
+</body>
+</html>

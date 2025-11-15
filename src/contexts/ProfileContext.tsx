@@ -80,11 +80,11 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
         tauriAPI.getNavigationContext(),
       ]);
 
-      setProfiles(profilesData);
-      setCurrentProfile(currentProfileData);
-      setCurrentPages(currentPagesData);
-      setCurrentPage(currentPageData);
-      setNavigationContext(navContext);
+      setProfiles(profilesData as ProfileInfo[]);
+      setCurrentProfile(currentProfileData as ProfileInfo);
+      setCurrentPages(currentPagesData as PageInfo[]);
+      setCurrentPage(currentPageData as PageInfo);
+      setNavigationContext(navContext as NavigationContext);
     } catch (err) {
       console.error('Failed to load profile data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load profile data');
@@ -97,7 +97,7 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
   const refreshProfiles = async () => {
     try {
       const profilesData = await tauriAPI.getProfiles();
-      setProfiles(profilesData);
+      setProfiles(profilesData as ProfileInfo[]);
     } catch (err) {
       console.error('Failed to refresh profiles:', err);
       setError(err instanceof Error ? err.message : 'Failed to refresh profiles');
@@ -107,7 +107,7 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
   const refreshCurrentProfile = async () => {
     try {
       const currentProfileData = await tauriAPI.getCurrentProfile();
-      setCurrentProfile(currentProfileData);
+      setCurrentProfile(currentProfileData as ProfileInfo);
     } catch (err) {
       console.error('Failed to refresh current profile:', err);
       setError(err instanceof Error ? err.message : 'Failed to refresh current profile');
@@ -120,8 +120,8 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
         tauriAPI.getCurrentPage(),
         tauriAPI.getCurrentProfilePages(),
       ]);
-      setCurrentPage(currentPageData);
-      setCurrentPages(currentPagesData);
+      setCurrentPage(currentPageData as PageInfo);
+      setCurrentPages(currentPagesData as PageInfo[]);
     } catch (err) {
       console.error('Failed to refresh current page:', err);
       setError(err instanceof Error ? err.message : 'Failed to refresh current page');
@@ -131,7 +131,7 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
   const refreshNavigationContext = async () => {
     try {
       const navContext = await tauriAPI.getNavigationContext();
-      setNavigationContext(navContext);
+      setNavigationContext(navContext as NavigationContext);
     } catch (err) {
       console.error('Failed to refresh navigation context:', err);
       setError(err instanceof Error ? err.message : 'Failed to refresh navigation context');
@@ -143,7 +143,7 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
     try {
       setError(null);
       const profileInfo = await tauriAPI.switchToProfile(profileIndex);
-      setCurrentProfile(profileInfo);
+      setCurrentProfile(profileInfo as ProfileInfo);
       
       // Refresh related data
       await Promise.all([
@@ -160,7 +160,7 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
     try {
       setError(null);
       const profileInfo = await tauriAPI.switchToProfileByName(profileName);
-      setCurrentProfile(profileInfo);
+      setCurrentProfile(profileInfo as ProfileInfo);
       
       // Refresh related data
       await Promise.all([
@@ -177,7 +177,7 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
     try {
       setError(null);
       const pageInfo = await tauriAPI.switchToPage(pageIndex);
-      setCurrentPage(pageInfo);
+      setCurrentPage(pageInfo as PageInfo);
       
       // Refresh navigation context
       await refreshNavigationContext();
@@ -191,7 +191,7 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
     try {
       setError(null);
       const pageInfo = await tauriAPI.nextPage();
-      setCurrentPage(pageInfo);
+      setCurrentPage(pageInfo as PageInfo);
       
       // Refresh navigation context
       await refreshNavigationContext();
@@ -205,7 +205,7 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
     try {
       setError(null);
       const pageInfo = await tauriAPI.previousPage();
-      setCurrentPage(pageInfo);
+      setCurrentPage(pageInfo as PageInfo);
       
       // Refresh navigation context
       await refreshNavigationContext();

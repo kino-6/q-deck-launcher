@@ -13,22 +13,26 @@
     "tauri:build": "tauri build",
     "tauri:build:debug": "tauri build --debug",
     "electron:dev": "concurrently \"cross-env NODE_ENV=development npm run dev\" \"wait-on -t 30000 http-get://localhost:1420 && cross-env NODE_ENV=development electron .\"",
-    "electron:build": "npm run build && electron-builder",
-    "electron:build:win": "npm run build && electron-builder --win",
-    "electron:build:mac": "npm run build && electron-builder --mac",
-    "electron:build:linux": "npm run build && electron-builder --linux",
+    "electron:build": "cross-env NODE_ENV=production npm run build && cross-env NODE_ENV=production electron-builder",
+    "electron:build:win": "cross-env NODE_ENV=production npm run build && cross-env NODE_ENV=production electron-builder --win",
+    "electron:build:mac": "cross-env NODE_ENV=production npm run build && cross-env NODE_ENV=production electron-builder --mac",
+    "electron:build:linux": "cross-env NODE_ENV=production npm run build && cross-env NODE_ENV=production electron-builder --linux",
     "test": "vitest --run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:rust": "cd src-tauri && cargo test",
+    "test:bundle": "vitest --run --config vitest.config.electron.ts electron/bundleOptimization.test.js",
     "check": "tsc --noEmit && cd src-tauri && cargo check",
     "clean": "rimraf dist && cd src-tauri && cargo clean",
-    "setup": "npm install && npm run check"
+    "setup": "npm install && npm run check",
+    "analyze": "node scripts/analyze-bundle.js",
+    "build:analyze": "npm run build && npm run analyze"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.9.0",
     "@tauri-apps/plugin-opener": "^2.5.2",
+    "electron-updater": "^6.6.2",
     "framer-motion": "^12.23.24",
     "node-global-key-listener": "^0.3.0",
     "react": "^19.1.0",
@@ -42,21 +46,22 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^24.10.1",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@types/styled-components": "^5.1.35",
     "@vitejs/plugin-react": "^4.6.0",
-    "@vitest/coverage-v8": "^4.0.6",
+    "@vitest/coverage-v8": "^4.0.9",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron": "^28.0.0",
     "electron-builder": "^26.0.12",
-    "jsdom": "^27.1.0",
+    "jsdom": "^27.2.0",
     "resedit": "^3.0.1",
     "rimraf": "^6.1.0",
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
-    "vitest": "^4.0.6",
+    "vitest": "^4.0.9",
     "wait-on": "^9.0.3"
   },
   "build": {
@@ -68,28 +73,57 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
-      "package.json"
+      "package.json",
+      "!electron/**/*.test.js",
+      "!electron/**/*.spec.js",
+      "!dist/**/*.map",
+      "!**/*.md",
+      "!**/README",
+      "!**/.DS_Store",
+      "!**/node_modules/node-global-key-listener/bin/MacKeyServer"
     ],
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "compression": "maximum",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/node-global-key-listener/**/*"
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "tkino",
+      "repo": "q-deck-launcher"
+    },
     "win": {
       "target": [
         "nsis",
         "portable"
       ],
-      "icon": "src-tauri/icons/icon.ico"
+      "icon": "src-tauri/icons/icon.ico",
+      "signAndEditExecutable": false
     },
     "mac": {
       "target": [
         "dmg",
         "zip"
       ],
-      "icon": "src-tauri/icons/icon.icns"
+      "icon": "src-tauri/icons/icon.icns",
+      "category": "public.app-category.productivity"
     },
     "linux": {
       "target": [
         "AppImage",
         "deb"
       ],
-      "icon": "src-tauri/icons/128x128.png"
+      "icon": "src-tauri/icons/128x128.png",
+      "category": "Utility"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     }
   }
 }

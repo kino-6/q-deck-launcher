@@ -48,13 +48,33 @@ npm install
 
 ### Production Build
 
+**ポータブル版のビルド（推奨）:**
+```powershell
+# TypeScriptのビルド + Viteのビルド
+npm run build
+
+# Electronのポータブル版をビルド
+npx electron-builder --win portable --config.win.signAndEditExecutable=false
+```
+
+**全てのビルド（インストーラー + ポータブル版）:**
 ```powershell
 npm run electron:build:win
 ```
 
-The built application will be in `release/` directory:
-- `Q-Deck Launcher Setup X.X.X.exe` - インストーラー
-- `Q-Deck Launcher X.X.X.exe` - ポータブル版
+ビルドされたファイルは `release/` ディレクトリに出力されます:
+- `Q-Deck Launcher X.X.X.exe` - **ポータブル版**（単一の.exeファイル、インストール不要）
+- `Q-Deck Launcher Setup X.X.X.exe` - インストーラー版（オプション）
+- `win-unpacked/` - 展開版（開発用）
+
+**ポータブル版の使い方:**
+1. `Q-Deck Launcher X.X.X.exe` をダブルクリックして起動
+2. 初回起動時に `%APPDATA%\q-deck-launcher\config.yaml` が自動生成されます
+3. F11キーでオーバーレイを表示/非表示
+
+**配布方法:**
+- ポータブル版の.exeファイルのみを配布すれば、ユーザーはすぐに使用できます
+- インストール不要、設定ファイルは自動生成されます
 
 ## Default Hotkeys
 

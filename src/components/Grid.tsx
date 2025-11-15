@@ -16,6 +16,8 @@ import { useButtonOperations } from '../hooks/useButtonOperations';
 import { useThemeSelector } from '../hooks/useThemeSelector';
 import { usePageNavigation } from '../hooks/usePageNavigation';
 import { useButtonShortcuts } from '../hooks/useButtonShortcuts';
+import { useButtonDragDrop } from '../hooks/useButtonDragDrop';
+import { useButtonSwap } from '../hooks/useButtonSwap';
 import { createGridCells } from '../utils/gridCalculations';
 import { handleSystemAction as handleSystemActionUtil, handleTestClick } from '../utils/configOperations';
 import { tauriAPI } from '../lib/platform-api';
@@ -99,6 +101,33 @@ export const Grid: React.FC<GridProps> = ({ config, currentProfile, currentPage,
     enabled: true,
   });
 
+  // Button drag and drop for swapping positions
+  const {
+    dragState: buttonDragState,
+    handleButtonDragStart,
+    handleButtonDragOver,
+    handleButtonDragEnd,
+  } = useButtonDragDrop();
+
+  // Button swap functionality
+  const { swapButtons } = useButtonSwap({
+    config,
+    currentProfileIndex,
+    currentPageIndex,
+    onConfigUpdate: (newConfig) => {
+      setTempConfig(newConfig);
+    },
+  });
+
+  // Handle button drop to swap positions
+  const handleButtonDrop = useCallback(async (toRow: number, toCol: number) => {
+    if (buttonDragState.draggedPosition) {
+      const { row: fromRow, col: fromCol } = buttonDragState.draggedPosition;
+      await swapButtons(fromRow, fromCol, toRow, toCol);
+      handleButtonDragEnd();
+    }
+  }, [buttonDragState.draggedPosition, swapButtons, handleButtonDragEnd]);
+
   // Handle system actions
   const handleSystemAction = useCallback((action: string) => {
     handleSystemActionUtil(action, openConfig);
@@ -150,7 +179,7 @@ export const Grid: React.FC<GridProps> = ({ config, currentProfile, currentPage,
   // Get all non-empty buttons in reading order for shortcuts
   const buttonsInReadingOrder = React.useMemo(() => {
     return gridCells
-      .filter(cell => cell.button !== null)
+      .filter(cell => cell.button !== null && cell.button !== undefined)
       .map(cell => cell.button!);
   }, [gridCells]);
 
@@ -228,6 +257,16 @@ export const Grid: React.FC<GridProps> = ({ config, currentProfile, currentPage,
               const isDropTarget = isDragOver;
               const shortcutNumber = button ? getButtonShortcut(button) : null;
               
+              // Check if this cell is being dragged
+              const isBeingDragged = buttonDragState.isDragging && 
+                buttonDragState.draggedPosition?.row === row && 
+                buttonDragState.draggedPosition?.col === col;
+              
+              // Check if this cell is the drop target for button swap
+              const isButtonDropTarget = buttonDragState.isDragging &&
+                buttonDragState.dropTargetPosition?.row === row &&
+                buttonDragState.dropTargetPosition?.col === col;
+              
               return (
                 <GridCell
                   key={index}
@@ -235,14 +274,18 @@ export const Grid: React.FC<GridProps> = ({ config, currentProfile, currentPage,
                   row={row}
                   col={col}
                   button={button}
-                  isDragOver={isDragOver}
-                  isDropTarget={isDropTarget}
+                  isDragOver={isDragOver || isButtonDropTarget}
+                  isDropTarget={isDropTarget || isButtonDropTarget}
                   dpiScale={dpiScale}
                   screenInfo={screenInfo}
                   shortcutNumber={shortcutNumber}
                   onSystemAction={handleSystemAction}
                   onContextMenu={handleContextMenu}
                   onEmptyCellContextMenu={handleEmptyCellContextMenu}
+                  onButtonDragStart={handleButtonDragStart}
+                  onButtonDragOver={handleButtonDragOver}
+                  onButtonDrop={handleButtonDrop}
+                  isBeingDragged={isBeingDragged}
                 />
               );
             })}

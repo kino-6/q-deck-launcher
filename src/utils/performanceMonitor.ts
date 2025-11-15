@@ -3,6 +3,8 @@
  * Tracks render times, component updates, and identifies bottlenecks
  */
 
+import { useEffect } from 'react';
+
 export interface PerformanceMetric {
   name: string;
   duration: number;
@@ -210,7 +212,7 @@ export function usePerformanceMonitor(componentName: string) {
 
   const renderStart = performance.now();
 
-  React.useEffect(() => {
+  useEffect(() => {
     const renderEnd = performance.now();
     const duration = renderEnd - renderStart;
 

@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import ActionButton from './ActionButton';
 import { ActionButton as ActionButtonType } from '../lib/platform-api';
 import { ScreenInfo } from '../hooks/useScreenInfo';
@@ -17,6 +16,10 @@ export interface GridCellProps {
   onSystemAction?: (action: string) => void;
   onContextMenu: (event: React.MouseEvent, button: ActionButtonType) => void;
   onEmptyCellContextMenu: (event: React.MouseEvent, row: number, col: number) => void;
+  onButtonDragStart?: (button: ActionButtonType, row: number, col: number) => void;
+  onButtonDragOver?: (row: number, col: number) => void;
+  onButtonDrop?: (row: number, col: number) => void;
+  isBeingDragged?: boolean;
 }
 
 export const GridCell: React.FC<GridCellProps> = React.memo(({
@@ -32,11 +35,15 @@ export const GridCell: React.FC<GridCellProps> = React.memo(({
   onSystemAction,
   onContextMenu,
   onEmptyCellContextMenu,
+  onButtonDragStart,
+  onButtonDragOver,
+  onButtonDrop,
+  isBeingDragged = false,
 }) => {
   // Memoize className to avoid string concatenation on every render
   const cellClassName = React.useMemo(
-    () => `grid-cell ${button ? 'has-button' : 'empty'} ${isDragOver ? 'drag-over' : ''} ${isDropTarget ? 'drop-target' : ''}`,
-    [button, isDragOver, isDropTarget]
+    () => `grid-cell ${button ? 'has-button' : 'empty'} ${isDragOver ? 'drag-over' : ''} ${isDropTarget ? 'drop-target' : ''} ${isBeingDragged ? 'being-dragged' : ''}`,
+    [button, isDragOver, isDropTarget, isBeingDragged]
   );
 
   // Memoize empty cell className
@@ -51,19 +58,47 @@ export const GridCell: React.FC<GridCellProps> = React.memo(({
     [onEmptyCellContextMenu, row, col]
   );
 
+  // Handle button drag start
+  const handleDragStart = React.useCallback((e: React.DragEvent) => {
+    if (button && onButtonDragStart) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', JSON.stringify({ row, col }));
+      onButtonDragStart(button, row, col);
+    }
+  }, [button, row, col, onButtonDragStart]);
+
+  // Handle drag over
+  const handleDragOver = React.useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (onButtonDragOver) {
+      onButtonDragOver(row, col);
+    }
+  }, [row, col, onButtonDragOver]);
+
+  // Handle drop
+  const handleDrop = React.useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    if (onButtonDrop) {
+      onButtonDrop(row, col);
+    }
+  }, [row, col, onButtonDrop]);
+
   return (
-    <motion.div
+    <div
       key={index}
       className={cellClassName}
-      initial={{ opacity: 0, scale: 0.8, y: 20 }}
-      animate={{ 
-        opacity: 1, 
-        scale: isDragOver ? 1.05 : 1, 
-        y: 0,
-        transition: { duration: 0.15 }
+      style={{
+        opacity: isBeingDragged ? 0.5 : 1,
+        transform: isDragOver ? 'scale(1.05)' : 'scale(1)',
+        transition: 'all 0.15s ease',
       }}
       data-row={row}
       data-col={col}
+      draggable={!!button}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       {button ? (
         <ActionButton 
@@ -87,7 +122,7 @@ export const GridCell: React.FC<GridCellProps> = React.memo(({
           )}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }, (prevProps, nextProps) => {
   // Custom comparison for React.memo
@@ -103,7 +138,11 @@ export const GridCell: React.FC<GridCellProps> = React.memo(({
     prevProps.shortcutNumber === nextProps.shortcutNumber &&
     prevProps.onSystemAction === nextProps.onSystemAction &&
     prevProps.onContextMenu === nextProps.onContextMenu &&
-    prevProps.onEmptyCellContextMenu === nextProps.onEmptyCellContextMenu
+    prevProps.onEmptyCellContextMenu === nextProps.onEmptyCellContextMenu &&
+    prevProps.onButtonDragStart === nextProps.onButtonDragStart &&
+    prevProps.onButtonDragOver === nextProps.onButtonDragOver &&
+    prevProps.onButtonDrop === nextProps.onButtonDrop &&
+    prevProps.isBeingDragged === nextProps.isBeingDragged
   );
 });
 

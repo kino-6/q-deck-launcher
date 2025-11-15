@@ -151,16 +151,33 @@ export const ActionButton: React.FC<ActionButtonProps> = React.memo(({ button, d
       };
       const result = await tauriAPI.executeAction(actionConfig);
       
+      console.log('🔍 Action execution result:', {
+        success: result?.success,
+        actionType: result?.actionType,
+        buttonActionType: button.action_type,
+        result: result
+      });
+      
       // Detect Open action execution for auto-close behavior
       if (result && result.success && result.actionType === 'Open') {
-        console.log('Open action detected - action type:', result.actionType);
+        console.log('✅ Open action detected - dispatching event:', result.actionType);
         // Emit custom event for Open action detection
-        window.dispatchEvent(new CustomEvent('open-action-executed', { 
+        const event = new CustomEvent('open-action-executed', { 
           detail: { 
             actionType: result.actionType,
             label: button.label 
-          } 
-        }));
+          },
+          bubbles: true,
+          cancelable: false
+        });
+        window.dispatchEvent(event);
+        console.log('✅ Event dispatched successfully');
+      } else {
+        console.log('❌ Not dispatching event - conditions not met:', {
+          hasResult: !!result,
+          success: result?.success,
+          actionType: result?.actionType
+        });
       }
     } catch (err) {
       console.error('Failed to execute action:', err);

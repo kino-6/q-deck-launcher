@@ -132,7 +132,7 @@ export const tauriAPI = {
   toggleOverlay: () => platformAPI.toggleOverlay(),
   
   // Actions - now using electron-adapter
-  executeAction: (actionConfig: any): Promise<ActionResult> => platformAPI.executeAction(actionConfig),
+  executeAction: (actionConfig: any): Promise<ActionResult> => platformAPI.executeAction(actionConfig) as Promise<ActionResult>,
   
   // Profile management - now using electron-adapter
   getProfiles: () => platformAPI.getAllProfiles(),

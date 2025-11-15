@@ -379,11 +379,11 @@ export const buttonStyleToCSS = (style: ButtonStyle): Record<string, string> => 
   }
   
   if (style.font_size) {
-    css['font-size'] = style.font_size;
+    css['font-size'] = `${style.font_size}px`;
   }
   
-  if (style.font_weight) {
-    css['font-weight'] = style.font_weight.toString();
+  if ((style as any).font_weight) {
+    css['font-weight'] = (style as any).font_weight.toString();
   }
   
   if (style.gradient?.enabled && style.gradient.colors.length >= 2) {

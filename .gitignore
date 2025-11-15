@@ -27,6 +27,10 @@ dist-ssr
 src-tauri/target/
 src-tauri/Cargo.lock
 
+# Electron build output
+release/
+dist/
+
 # Application data
 config.yaml
 *.log

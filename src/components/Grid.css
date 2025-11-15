@@ -133,6 +133,8 @@
   height: var(--cell-size);
   border-radius: 8px;
   overflow: hidden;
+  cursor: grab;
+  transition: all 0.2s ease;
 }
 
 .grid-cell.empty {
@@ -141,11 +143,36 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: default;
 }
 
 .grid-cell.has-button {
   background: transparent;
   border: none;
+}
+
+/* Button drag and drop states */
+.grid-cell.being-dragged {
+  opacity: 0.5;
+  cursor: grabbing;
+  transform: scale(0.95);
+}
+
+.grid-cell.drop-target {
+  background: rgba(100, 108, 255, 0.2);
+  border: 2px solid rgba(100, 108, 255, 0.6);
+  box-shadow: 0 0 20px rgba(100, 108, 255, 0.4);
+}
+
+.grid-cell.drop-target::after {
+  content: '🔄';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  pointer-events: none;
+  z-index: 10;
 }
 
 /* Empty Cell */
